@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800">
+  <defs>
+    <pattern id="fab" width="80" height="80" patternUnits="userSpaceOnUse" patternTransform="rotate(-5)">
+      <rect width="80" height="80" fill="#f1e6cf"/>
+      <g transform="translate(20 30) scale(1)">
+    <path d="M-4 0q-1 10 1 14h6q2-4 1-14z" fill="#f7efe0" stroke="#c9b48f" stroke-width="1"/>
+    <path d="M-15 2q2-15 15-15t15 15q-15 4-30 0z" fill="#b5503c"/>
+    <circle cx="-6" cy="-5" r="2.4" fill="#f7efe0"/><circle cx="4" cy="-8" r="2" fill="#f7efe0"/><circle cx="8" cy="-1" r="1.8" fill="#f7efe0"/>
+  </g><g transform="translate(60 70) scale(0.8)">
+    <path d="M-4 0q-1 10 1 14h6q2-4 1-14z" fill="#f7efe0" stroke="#c9b48f" stroke-width="1"/>
+    <path d="M-15 2q2-15 15-15t15 15q-15 4-30 0z" fill="#b5503c"/>
+    <circle cx="-6" cy="-5" r="2.4" fill="#f7efe0"/><circle cx="4" cy="-8" r="2" fill="#f7efe0"/><circle cx="8" cy="-1" r="1.8" fill="#f7efe0"/>
+  </g>
+      <path d="M50 22l3 3m0-3l-3 3M12 64l3 3m0-3l-3 3" stroke="#8aa070" stroke-width="1.6" stroke-linecap="round"/>
+      <circle cx="66" cy="34" r="2" fill="#d9a441"/><circle cx="34" cy="62" r="1.6" fill="#d9a441"/>
+    </pattern>
+    <filter id="linen" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9 0.06" numOctaves="2" seed="4"/>
+      <feColorMatrix values="0 0 0 0 .45 0 0 0 0 .36 0 0 0 0 .26 0 0 0 .32 0"/>
+    </filter>
+    <filter id="weave" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="1.4" numOctaves="1" seed="9"/>
+      <feColorMatrix values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .22 0"/>
+      <feComposite in2="SourceGraphic" operator="in"/>
+    </filter>
+    <filter id="soft"><feGaussianBlur stdDeviation="14"/></filter>
+    <linearGradient id="spine" x1="0" x2="1">
+      <stop offset="0" stop-color="#000" stop-opacity=".35"/>
+      <stop offset=".12" stop-color="#000" stop-opacity=".05"/>
+      <stop offset=".16" stop-color="#fff" stop-opacity=".18"/>
+      <stop offset=".3" stop-color="#fff" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000" stop-opacity=".12"/>
+    </linearGradient>
+    <radialGradient id="vig" cx=".5" cy=".45" r=".75">
+      <stop offset=".6" stop-color="#000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#3a2a1a" stop-opacity=".28"/>
+    </radialGradient>
+  </defs>
+  <rect width="800" height="800" fill="#ede1cb"/>
+  <rect width="800" height="800" filter="url(#linen)"/>
+
+  <!-- thread spool -->
+  <g transform="translate(120 640) rotate(-18)">
+    <rect x="-44" y="-30" width="88" height="60" rx="6" fill="#6f8a5c"/>
+    <path d="M-44 -22h88M-44 -12h88M-44 -2h88M-44 8h88M-44 18h88" stroke="#000" stroke-opacity=".12" stroke-width="2"/>
+    <rect x="-54" y="-38" width="12" height="76" rx="4" fill="#c8a273"/><rect x="42" y="-38" width="12" height="76" rx="4" fill="#c8a273"/>
+  </g>
+  <path d="M170 640 C260 700 300 610 380 700 S520 760 560 720" fill="none" stroke="#6f8a5c" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- buttons -->
+  <g fill="#c8a273"><circle cx="660" cy="660" r="20"/><circle cx="700" cy="610" r="13"/></g>
+  <g fill="#7a5a36"><circle cx="654" cy="654" r="3"/><circle cx="666" cy="654" r="3"/><circle cx="654" cy="666" r="3"/><circle cx="666" cy="666" r="3"/><circle cx="696" cy="610" r="2.2"/><circle cx="704" cy="610" r="2.2"/></g>
+
+  <g transform="rotate(-7 400 380)">
+    <rect x="248" y="128" width="330" height="470" rx="16" fill="#2a1d12" opacity=".45" filter="url(#soft)" transform="translate(14 20)"/>
+    <!-- ribbon bookmark -->
+    <path d="M470 560 L470 680 L486 664 L502 680 L502 560Z" fill="#6f8a5c"/>
+    <rect x="240" y="110" width="330" height="470" rx="16" fill="url(#fab)"/>
+    <rect x="240" y="110" width="330" height="470" rx="16" fill="#fff" filter="url(#weave)"/>
+    <rect x="240" y="110" width="330" height="470" rx="16" fill="url(#spine)"/>
+    <rect x="254" y="124" width="302" height="442" rx="10" fill="none" stroke="#fffaf0" stroke-opacity=".75" stroke-width="2.4" stroke-dasharray="9 7"/>
+    <!-- strap with a wooden button -->
+    <rect x="500" y="318" width="110" height="52" rx="14" fill="#b5503c"/>
+    <rect x="507" y="325" width="96" height="38" rx="10" fill="none" stroke="#fffaf0" stroke-opacity=".6" stroke-width="2" stroke-dasharray="6 5"/>
+    <circle cx="582" cy="344" r="15" fill="#c8a273"/><circle cx="582" cy="344" r="15" fill="none" stroke="#7a5a36" stroke-width="2"/>
+    <g fill="#7a5a36"><circle cx="577" cy="339" r="2.4"/><circle cx="587" cy="339" r="2.4"/><circle cx="577" cy="349" r="2.4"/><circle cx="587" cy="349" r="2.4"/></g>
+    <!-- sewn-in label -->
+    <rect x="276" y="508" width="104" height="34" rx="3" fill="#f7efe0"/>
+    <rect x="280" y="512" width="96" height="26" rx="2" fill="none" stroke="#a4523f" stroke-opacity=".5" stroke-width="1.2" stroke-dasharray="4 3"/>
+    <text x="328" y="531" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="13" fill="#7c3a2b">handmade</text>
+  </g>
+  <rect width="800" height="800" fill="url(#vig)"/>
+</svg>

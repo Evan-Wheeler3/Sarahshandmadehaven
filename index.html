@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sarah's Handmade Haven — Fabric Book Covers</title>
+  <meta name="description" content="Handmade fabric book covers, sewn one at a time by Sarah. $20 each — order through Instagram.">
+  <meta property="og:title" content="Sarah's Handmade Haven">
+  <meta property="og:description" content="Handmade fabric book covers, sewn one at a time. $20 each.">
+  <meta property="og:type" content="website">
+  <meta name="theme-color" content="#4f473e">
+  <link rel="icon" href="images/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=IM+Fell+English:ital@0;1&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+  <script>document.documentElement.classList.add('js');</script>
+</head>
+<body>
+  <canvas id="scene" aria-hidden="true"></canvas>
+  <svg id="ivy" aria-hidden="true"></svg>
+
+  <nav class="topnav" aria-label="Main">
+    <a class="topnav__brand" href="#top">
+      <img src="images/favicon.svg" alt="" width="22" height="22">
+      <span>Sarah's Handmade Haven</span>
+    </a>
+    <ul class="topnav__links">
+      <li><a href="#shop">Book Covers</a></li>
+      <li><a href="#order">How to Order</a></li>
+      <li><a href="#about">About</a></li>
+      <li><a class="topnav__ig" data-ig href="#">Instagram</a></li>
+    </ul>
+  </nav>
+
+  <header class="hero" id="top">
+    <div class="hero__stage">
+      <h1 class="title" aria-label="Sarah's Handmade Haven">
+        <span class="title__line title__line--small" data-split>Sarah's</span>
+        <span class="title__line" data-split>Handmade</span>
+        <span class="title__line" data-split>Haven</span>
+      </h1>
+      <p class="hero__tag">Fabric book covers, sewn by hand one at a time.</p>
+      <a class="btn hero__cta" href="#shop">See the book covers</a>
+      <div class="scroll-cue" aria-hidden="true">
+        <span>scroll in</span>
+        <svg viewBox="0 0 20 30" width="16" height="24"><path d="M10 2v24M3 19l7 7 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="section" id="welcome">
+      <div class="card card--note">
+        <p class="kicker">welcome in</p>
+        <h2>A little haven for well-loved books</h2>
+        <p>Every cover here is cut, pinned and stitched by hand from fabric I fell in love with. They keep your book safe in a tote bag, feel lovely to hold, and make even a battered paperback look like a treasure.</p>
+      </div>
+    </section>
+
+    <section class="section" id="shop">
+      <article class="card product">
+        <div class="product__gallery">
+          <figure class="photo">
+            <img id="product-main" src="images/cover-floral.svg" width="800" height="800"
+                 alt="Fabric book cover in a sage floral print with a button strap">
+          </figure>
+          <div class="thumbs">
+            <button class="thumb" type="button" aria-pressed="true" aria-label="Sage floral print">
+              <img src="images/cover-floral.svg" alt="Fabric book cover in a sage floral print with a button strap" width="800" height="800">
+            </button>
+            <button class="thumb" type="button" aria-pressed="false" aria-label="Rose gingham print">
+              <img src="images/cover-gingham.svg" alt="Fabric book cover in a dusty rose gingham" width="800" height="800">
+            </button>
+            <button class="thumb" type="button" aria-pressed="false" aria-label="Mushroom print">
+              <img src="images/cover-mushroom.svg" alt="Fabric book cover with little red mushrooms on cream" width="800" height="800">
+            </button>
+            <button class="thumb" type="button" aria-pressed="false" aria-label="Moon and stars print">
+              <img src="images/cover-stars.svg" alt="Fabric book cover in navy with gold moons and stars" width="800" height="800">
+            </button>
+          </div>
+        </div>
+
+        <div class="product__info">
+          <p class="kicker">handmade &amp; one of a kind</p>
+          <h2>Fabric Book Covers</h2>
+          <div class="price-tag" aria-label="Price: 20 dollars"><span>$20</span></div>
+          <p class="lede">A soft, padded jacket for the book you can't put down. Slip it on, carry it everywhere, and move it to the next book when you're done.</p>
+          <ul class="stitch-list">
+            <li>Sewn by hand, one at a time</li>
+            <li>Keeps corners and spines safe in your bag</li>
+            <li>Slips on and off easily, so it's reusable</li>
+            <li>Prints change often, so no two batches are the same</li>
+          </ul>
+          <a class="btn" data-ig="dm" href="#">Order on Instagram</a>
+          <p class="fine">Prints shown are examples. Message me to see what fabric is on the shelf right now, and tell me what size book it's for.</p>
+        </div>
+      </article>
+    </section>
+
+    <section class="section" id="order">
+      <div class="card steps">
+        <p class="kicker">simple as can be</p>
+        <h2>How to order</h2>
+        <ol class="steps__list">
+          <li>
+            <span class="steps__num">1</span>
+            <h3>Pick a print</h3>
+            <p>Browse the newest fabrics on Instagram, or ask what's available.</p>
+          </li>
+          <li>
+            <span class="steps__num">2</span>
+            <h3>Send a message</h3>
+            <p>DM me the print you love and the book you'd like it to fit.</p>
+          </li>
+          <li>
+            <span class="steps__num">3</span>
+            <h3>I stitch it up</h3>
+            <p>We'll sort out payment and getting it to you, and then your cover gets made.</p>
+          </li>
+        </ol>
+        <a class="btn btn--ghost" data-ig="dm" href="#">Message <span data-ig-handle>on Instagram</span></a>
+      </div>
+    </section>
+
+    <section class="section" id="about">
+      <div class="card about">
+        <img class="about__img" src="images/about-hoop.svg" alt="An embroidery hoop with a cross-stitched heart" width="600" height="600" loading="lazy">
+        <div>
+          <p class="kicker">the maker</p>
+          <h2>Hi, I'm Sarah</h2>
+          <p>Sarah's Handmade Haven is my little corner for making things by hand. It started with a sewing machine, a pile of fabric scraps, and a stack of books that needed protecting.</p>
+          <p>Book covers are what I'm making right now, but other handmade goodies turn up from time to time. Follow along on Instagram so you don't miss them.</p>
+          <a class="btn btn--ghost" data-ig href="#">Follow <span data-ig-handle>on Instagram</span></a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p class="footer__mark">Sarah's Handmade Haven</p>
+    <p>Made by hand, with love · © <span data-year>2026</span></p>
+  </footer>
+
+  <script src="js/stone.js" defer></script>
+  <script src="js/scene.js" defer></script>
+  <script src="js/ivy.js" defer></script>
+  <script src="js/main.js" defer></script>
+</body>
+</html>
