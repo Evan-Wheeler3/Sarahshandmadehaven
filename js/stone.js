@@ -49,7 +49,7 @@
       }
     },
     sandstone: {
-      mortar: '#6b5238', grit: [255, 230, 190], highlight: 'rgba(255,246,215,.42)', grain: 22, strata: true,
+      mortar: '#57412d', grit: [255, 230, 190], highlight: 'rgba(255,246,215,.5)', grain: 22, strata: true,
       color(rnd) {
         const roll = rnd();
         let h = 32 + rnd() * 9, s = 38 + rnd() * 18, l = 60 + rnd() * 12;
@@ -66,8 +66,10 @@
     const { x, y, w, h } = st.shape;
     const c = st.color;
 
-    // shadow cast into the mortar
-    ctx.fillStyle = 'rgba(18,13,9,.5)';
+    // shadow cast into the recessed mortar, plus a soft halo for depth
+    ctx.fillStyle = 'rgba(18,12,7,.28)';
+    trace(ctx, st.shape, 2.6, 3.8); ctx.fill();
+    ctx.fillStyle = 'rgba(18,12,7,.55)';
     trace(ctx, st.shape, 1.4, 2.2); ctx.fill();
 
     trace(ctx, st.shape, 0, 0);
@@ -127,11 +129,16 @@
     }
 
     // bevel: highlight top-left, shade bottom-right
-    ctx.lineWidth = 3.2;
+    ctx.lineWidth = 3.6;
     ctx.strokeStyle = style.highlight;
-    trace(ctx, st.shape, 1.6, 1.6); ctx.stroke();
-    ctx.strokeStyle = 'rgba(15,10,6,.32)';
-    trace(ctx, st.shape, -1.6, -1.6); ctx.stroke();
+    trace(ctx, st.shape, 1.8, 1.8); ctx.stroke();
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = 'rgba(15,10,6,.4)';
+    trace(ctx, st.shape, -2, -2); ctx.stroke();
+    // a crisp bright lip on the top edge where the light catches it
+    ctx.lineWidth = 1.2;
+    ctx.strokeStyle = 'rgba(255,252,240,.35)';
+    trace(ctx, st.shape, 0.6, 0.9); ctx.stroke();
 
     ctx.restore();
   }
@@ -148,8 +155,10 @@
     const hsum = hs.reduce((a, b) => a + b, 0);
 
     let y = 0;
+    stones.rows = [0];
     for (let r = 0; r < rows; r++) {
       const rowH = (hs[r] / hsum) * height;
+      stones.rows.push(y + rowH);
       const ws = [];
       let wsum = 0;
       while (wsum < size) { const w = rowH * (1.15 + rnd() * 1.45); ws.push(w); wsum += w; }
@@ -157,7 +166,7 @@
       let x = rnd() * size;
       for (const w0 of ws) {
         const w = w0 * k;
-        const gap = 2.6 + rnd() * 1.8;
+        const gap = 3.4 + rnd() * 2;
         const split = w > rowH * 1.2 && rnd() < 0.16;
         const parts = split
           ? [[y, rowH * (0.4 + rnd() * 0.2)], null]
@@ -281,6 +290,8 @@
     ctx.fillStyle = ctx.createPattern(n, 'repeat');
     ctx.fillRect(0, 0, c.width, c.height);
     ctx.restore();
+
+    c.rows = stones.rows;
 
     // glint points (tile CSS px), only within the tile so each appears once per repeat
     c.sparkles = [];

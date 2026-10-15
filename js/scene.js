@@ -73,7 +73,28 @@
     }
 
     S.L = { narrow, tw, cx, groundY, topY, winW, winTop, winH, winBottom, slitY, F, baseY, Z, tufts, clouds };
+    S.L.edge = makeEdge(S.L, rnd);
     S.tint = makeTint();
+  }
+
+  // The tower's outline follows its stone courses: each course pokes out a
+  // little, and the mortar between them dips in, so the silhouette reads as
+  // stacked stone rather than a cut-out.
+  function makeEdge(L, rnd) {
+    const ys = [];
+    if (S.rows && S.rows.length > 1 && S.tileH) {
+      const n0 = Math.floor(((L.topY - L.tw - L.F.y) * L.Z) / S.tileH) - 1;
+      const n1 = Math.ceil(((L.baseY - L.F.y) * L.Z) / S.tileH) + 1;
+      for (let n = n0; n <= n1; n++) {
+        for (let r = 0; r < S.rows.length - 1; r++) ys.push(L.F.y + (S.rows[r] + n * S.tileH) / L.Z);
+      }
+    }
+    const rowsIn = ys.filter((y) => y > L.topY - 1 && y < L.baseY + 1);
+    const rh = rowsIn.length > 1 ? (rowsIn[rowsIn.length - 1] - rowsIn[0]) / (rowsIn.length - 1) : 5;
+    const amp = clamp(rh * 0.3, 0.4, 3);
+    const bump = () => (rnd() < 0.12 ? 0 : amp * (0.35 + rnd() * 0.65));
+    const yy = [L.topY, ...rowsIn, L.baseY];
+    return { ys: yy, left: yy.map(bump), right: yy.map(bump), amp };
   }
 
   // Broad, soft patches of lighter and darker stone laid over the tower in
@@ -119,6 +140,7 @@
       S.wallAvg = LOOK.wall;
     }
     S.patterns = S.mips.map((c) => ctx.createPattern(c, 'repeat'));
+    S.rows = base.rows || [];
   }
 
   function resize() {
@@ -167,7 +189,38 @@
     const pat = S.patterns[i];
     const k = (S.mips[0].width / S.mips[i].width) / (L.Z * S.tileDpr);
     pat.setTransform(new DOMMatrix([k, 0, 0, k, L.F.x, L.F.y]));
+    pat.k = k;
     return pat;
+  }
+
+  // Fill a shape with stone wrapped round a cylinder of half-width hw: the
+  // texture is drawn in thin vertical strips, each squeezed by how far the
+  // surface has turned away. curv 0 is flat (and exactly matches the wall).
+  function fillCylinder(pat, shape, hw, curv) {
+    const L = S.L, k = pat.k;
+    const top = L.topY - L.tw * 1.2, height = L.baseY - top + L.tw;
+    ctx.save();
+    shape();
+    ctx.clip();
+    if (curv < 0.01) {
+      pat.setTransform(new DOMMatrix([k, 0, 0, k, L.F.x, L.F.y]));
+      ctx.fillStyle = pat;
+      ctx.fillRect(L.cx - hw * 1.4, top, hw * 2.8, height);
+      ctx.restore();
+      return;
+    }
+    const R = hw / 0.95 / curv;
+    const uOf = (X) => R * Math.asin(clamp(X / R, -0.999, 0.999));
+    const N = 28, X0 = -hw * 1.12, X1 = hw * 1.12;
+    ctx.fillStyle = pat;
+    for (let i = 0; i < N; i++) {
+      const xa = X0 + ((X1 - X0) * i) / N, xb = X0 + ((X1 - X0) * (i + 1)) / N;
+      const ua = uOf(xa), ub = uOf(xb);
+      const sx = (xb - xa) / (ub - ua);
+      pat.setTransform(new DOMMatrix([k * sx, 0, 0, k, L.cx + xa - ua * sx, L.F.y]));
+      ctx.fillRect(L.cx + xa - 0.25, top, xb - xa + 0.5, height);
+    }
+    ctx.restore();
   }
 
   /* ---------- painting ---------- */
@@ -232,14 +285,44 @@
     ctx.fill();
   }
 
+  const halfWidth = (y) => { const L = S.L; return S.L.tw * lerp(0.47, 0.53, (y - L.topY) / (L.baseY - L.topY)); };
+
   function towerBody(c = ctx) {
-    const L = S.L;
-    const hwT = L.tw * 0.47, hwB = L.tw * 0.53;
+    const L = S.L, E = L.edge;
     c.beginPath();
-    c.moveTo(L.cx - hwT, L.topY);
-    c.lineTo(L.cx + hwT, L.topY);
-    c.lineTo(L.cx + hwB, L.baseY);
-    c.lineTo(L.cx - hwB, L.baseY);
+    if (!E) {
+      c.moveTo(L.cx - halfWidth(L.topY), L.topY);
+      c.lineTo(L.cx + halfWidth(L.topY), L.topY);
+      c.lineTo(L.cx + halfWidth(L.baseY), L.baseY);
+      c.lineTo(L.cx - halfWidth(L.baseY), L.baseY);
+      c.closePath();
+      return;
+    }
+    const n = E.ys.length, dip = E.amp * 0.55;
+    // left side, top to bottom
+    c.moveTo(L.cx - halfWidth(E.ys[0]), E.ys[0]);
+    for (let i = 0; i < n - 1; i++) {
+      const ya = E.ys[i], yb = E.ys[i + 1], hgt = yb - ya, r = Math.min(hgt * 0.22, E.amp);
+      const x = L.cx - halfWidth((ya + yb) / 2) - E.left[i];
+      c.lineTo(L.cx - halfWidth(ya) + dip, ya);
+      c.lineTo(x + r * 0.5, ya + r * 0.6);
+      c.lineTo(x, ya + r);
+      c.lineTo(x, yb - r);
+      c.lineTo(x + r * 0.5, yb - r * 0.4);
+    }
+    c.lineTo(L.cx - halfWidth(L.baseY), L.baseY);
+    c.lineTo(L.cx + halfWidth(L.baseY), L.baseY);
+    // right side, bottom to top
+    for (let i = n - 2; i >= 0; i--) {
+      const ya = E.ys[i], yb = E.ys[i + 1], hgt = yb - ya, r = Math.min(hgt * 0.22, E.amp);
+      const x = L.cx + halfWidth((ya + yb) / 2) + E.right[i];
+      c.lineTo(L.cx + halfWidth(yb) - dip, yb);
+      c.lineTo(x - r * 0.5, yb - r * 0.4);
+      c.lineTo(x, yb - r);
+      c.lineTo(x, ya + r);
+      c.lineTo(x - r * 0.5, ya + r * 0.6);
+    }
+    c.lineTo(L.cx + halfWidth(L.topY), L.topY);
     c.closePath();
   }
 
@@ -288,10 +371,27 @@
     const L = S.L, tw = L.tw;
     setCam(cam, 1);
     const pat = stonePattern(cam.z);
+    const shade = 1 - smooth(clamp((p - 0.1) / 0.6, 0, 1));
+    const curv = 1 - smooth(clamp(p / 0.5, 0, 1));
+    const pw = tw * 0.62, pTop = L.topY - tw * 0.32, mh = tw * 0.3;
 
-    ctx.fillStyle = pat;
-    towerBody(); ctx.fill();
-    parapet(); ctx.fill();
+    // the far side of the parapet, seen through the gaps in the battlements
+    if (shade > 0.001) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(L.cx - pw * 0.9, pTop - mh * 0.62, pw * 1.8, mh * 0.62 + 1);
+      ctx.fillStyle = pat;
+      ctx.fill();
+      const bg = ctx.createLinearGradient(L.cx - pw, 0, L.cx + pw, 0);
+      bg.addColorStop(0, 'rgba(40,26,16,.25)');
+      bg.addColorStop(1, 'rgba(40,26,16,.6)');
+      ctx.fillStyle = bg;
+      ctx.fill();
+      ctx.restore();
+    }
+
+    fillCylinder(pat, () => towerBody(), tw * 0.5, curv);
+    fillCylinder(pat, () => parapet(), pw, curv);
 
     if (S.tint) {
       ctx.save();
@@ -304,28 +404,64 @@
       ctx.restore();
     }
 
-    // cylindrical shading — fades away as we get close
-    const shade = 1 - smooth(clamp((p - 0.1) / 0.6, 0, 1));
     if (shade > 0.001) {
-      const pw = tw * 0.62;
-      const g = ctx.createLinearGradient(L.cx - pw, 0, L.cx + pw, 0);
-      g.addColorStop(0, `rgba(30,22,15,${0.55 * shade})`);
-      g.addColorStop(0.2, `rgba(255,240,215,${0.16 * shade})`);
-      g.addColorStop(0.42, `rgba(255,240,215,${0.06 * shade})`);
-      g.addColorStop(0.72, `rgba(30,22,15,${0.22 * shade})`);
-      g.addColorStop(1, `rgba(30,22,15,${0.7 * shade})`);
-      ctx.fillStyle = g;
+      // light from the upper left falling on a round tower
+      const litGradient = (hw) => {
+        const g = ctx.createLinearGradient(L.cx - hw, 0, L.cx + hw, 0);
+        for (let i = 0; i <= 12; i++) {
+          const X = -1 + (2 * i) / 12;
+          const th = Math.asin(clamp(X * 0.97, -1, 1));
+          const lam = Math.max(0, -Math.sin(th) * 0.62 + Math.cos(th) * 0.78);
+          const col = lam > 0.66
+            ? `rgba(255,238,205,${(Math.min(0.3, (lam - 0.66) * 1.1) * shade).toFixed(3)})`
+            : `rgba(26,16,9,${(Math.min(0.85, (0.66 - lam) * 1.35) * shade).toFixed(3)})`;
+          g.addColorStop(i / 12, col);
+        }
+        return g;
+      };
+      ctx.fillStyle = litGradient(tw * 0.54);
       towerBody(); ctx.fill();
+      ctx.fillStyle = litGradient(pw * 1.02);
       parapet(); ctx.fill();
+
+      // rim light on the sunny edge, a dark edge on the shady one
+      ctx.save();
+      ctx.lineJoin = 'round';
+      ctx.save();
+      ctx.beginPath(); ctx.rect(L.cx - tw * 2, pTop - tw, tw * 1.65, L.baseY); ctx.clip();
+      towerBody(); parapet(ctx, true);
+      ctx.strokeStyle = `rgba(255,236,200,${0.55 * shade})`;
+      ctx.lineWidth = Math.max(0.6, tw * 0.012);
+      ctx.stroke();
+      ctx.restore();
+      ctx.beginPath(); ctx.rect(L.cx + tw * 0.35, pTop - tw, tw * 2, L.baseY); ctx.clip();
+      towerBody(); parapet(ctx, true);
+      ctx.strokeStyle = `rgba(20,12,6,${0.5 * shade})`;
+      ctx.lineWidth = Math.max(0.8, tw * 0.018);
+      ctx.stroke();
+      ctx.restore();
+
+      // sunlit tops of the battlements and the corbels under the parapet
+      const n = 4, a = (2 * pw) / (n + (n - 1) * 0.75), gap = a * 0.75;
+      ctx.fillStyle = `rgba(255,240,210,${0.55 * shade})`;
+      for (let i = 0, x = L.cx - pw; i < n; i++, x += a + gap) ctx.fillRect(x, pTop - mh, a, Math.max(0.6, tw * 0.025));
+      ctx.save();
+      parapet(); ctx.clip();
+      ctx.fillStyle = `rgba(22,14,8,${0.3 * shade})`;
+      for (let i = 0; i < 9; i++) {
+        const x = L.cx - pw * 0.9 + (pw * 1.8 * (i + 0.5)) / 9;
+        ctx.fillRect(x - tw * 0.012, L.topY + tw * 0.1, tw * 0.024, tw * 0.2);
+      }
+      ctx.restore();
 
       // shadow under the parapet
       ctx.save();
       towerBody(); ctx.clip();
-      const sg = ctx.createLinearGradient(0, L.topY + tw * 0.25, 0, L.topY + tw * 0.75);
-      sg.addColorStop(0, `rgba(20,14,9,${0.5 * shade})`);
+      const sg = ctx.createLinearGradient(0, L.topY + tw * 0.25, 0, L.topY + tw * 0.8);
+      sg.addColorStop(0, `rgba(20,14,9,${0.6 * shade})`);
       sg.addColorStop(1, 'rgba(20,14,9,0)');
       ctx.fillStyle = sg;
-      ctx.fillRect(L.cx - tw, L.topY + tw * 0.25, tw * 2, tw * 0.5);
+      ctx.fillRect(L.cx - tw, L.topY + tw * 0.25, tw * 2, tw * 0.55);
       ctx.restore();
 
       // haze toward the ground
@@ -349,6 +485,11 @@
     archPath(L.cx, dTop, dw, L.groundY + tw * 0.2);
     ctx.fillStyle = '#4b3322'; ctx.fill();
     ctx.save(); ctx.clip();
+    const ds = ctx.createLinearGradient(0, dTop, 0, dTop + dw * 0.8);
+    ds.addColorStop(0, 'rgba(10,5,2,.6)');
+    ds.addColorStop(1, 'rgba(10,5,2,0)');
+    ctx.fillStyle = ds;
+    ctx.fillRect(L.cx - dw, dTop, dw * 2, dw * 0.8);
     ctx.strokeStyle = 'rgba(20,12,6,.6)'; ctx.lineWidth = tw * 0.012;
     for (let i = 1; i < 4; i++) {
       const x = L.cx - dw / 2 + (dw / 4) * i;
@@ -382,6 +523,26 @@
     ig.addColorStop(1, 'rgba(60,30,12,0)');
     ctx.fillStyle = ig;
     ctx.fill();
+    // depth: the arch shades the top of the opening, and the inner right
+    // jamb catches the light
+    ctx.save();
+    archPath(cx, top, w, bottom); ctx.clip();
+    const ts = ctx.createLinearGradient(0, top, 0, top + w * 0.9);
+    ts.addColorStop(0, 'rgba(8,4,2,.75)');
+    ts.addColorStop(1, 'rgba(8,4,2,0)');
+    ctx.fillStyle = ts;
+    ctx.fillRect(cx - w, top, w * 2, w * 0.9);
+    const jamb = ctx.createLinearGradient(cx + w * 0.5, 0, cx + w * 0.3, 0);
+    jamb.addColorStop(0, 'rgba(214,184,140,.85)');
+    jamb.addColorStop(1, 'rgba(150,110,70,0)');
+    ctx.fillStyle = jamb;
+    ctx.fillRect(cx + w * 0.3, top, w * 0.2, bottom - top);
+    const lj = ctx.createLinearGradient(cx - w * 0.5, 0, cx - w * 0.36, 0);
+    lj.addColorStop(0, 'rgba(0,0,0,.55)');
+    lj.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = lj;
+    ctx.fillRect(cx - w * 0.5, top, w * 0.14, bottom - top);
+    ctx.restore();
 
     // stone arch (voussoirs)
     ctx.lineWidth = tw * 0.085;
@@ -441,7 +602,7 @@
     }
   }
 
-  function drawGround(cam) {
+  function drawGround(cam, p) {
     const { vw, L } = S;
     setCam(cam, 1);
     const base = L.groundY;
@@ -456,6 +617,34 @@
     g.addColorStop(1, '#556a3b');
     ctx.fillStyle = g;
     ctx.fill();
+
+    // the tower's shadow, cast down-right across the hill, and a dark contact line at its foot
+    const shade = 1 - smooth(clamp((p - 0.1) / 0.6, 0, 1));
+    if (shade > 0.001) {
+      const tw = L.tw, hw = tw * 0.53, gy = crest(L.cx);
+      // a long, soft shadow: a feathered ellipse stretched down the slope
+      ctx.save();
+      ctx.translate(L.cx + tw * 1.6, gy + tw * 0.16);
+      ctx.transform(1, 0.07, 0, 1, 0, 0);
+      ctx.scale(tw * 2.4, tw * 0.3);
+      const sh = ctx.createRadialGradient(-0.35, 0, 0, -0.35, 0, 1.25);
+      sh.addColorStop(0, `rgba(26,34,14,${0.42 * shade})`);
+      sh.addColorStop(0.55, `rgba(26,34,14,${0.22 * shade})`);
+      sh.addColorStop(1, 'rgba(26,34,14,0)');
+      ctx.fillStyle = sh;
+      ctx.beginPath(); ctx.ellipse(0, 0, 1.25, 1.25, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+      // where the stone meets the grass
+      ctx.save();
+      ctx.translate(L.cx, gy + 1);
+      ctx.scale(hw * 1.5, hw * 0.28);
+      const ao = ctx.createRadialGradient(0, 0, 0, 0, 0, 1);
+      ao.addColorStop(0, `rgba(20,24,10,${0.5 * shade})`);
+      ao.addColorStop(1, 'rgba(20,24,10,0)');
+      ctx.fillStyle = ao;
+      ctx.beginPath(); ctx.ellipse(0, 0, 1, 1, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
 
     ctx.lineCap = 'round';
     ctx.lineWidth = 1.4;
@@ -519,7 +708,7 @@
     drawTower(cam, p);
     if (!covered) {
       drawMotes(cam, p);
-      drawGround(cam);
+      drawGround(cam, p);
     }
     if (reduceMotion) drawWallFlat(smooth(clamp((p - 0.3) / 0.6, 0, 1)));
     drawWallLight(p);
