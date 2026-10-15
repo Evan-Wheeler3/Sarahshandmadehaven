@@ -297,7 +297,7 @@
   let lastG = -1, queued = false;
   function frame(now) {
     queued = false;
-    if (!vines.length) return;
+    if (!vines.length || document.body.classList.contains('is-posting')) return;
     const g = growth();
     const changed = Math.abs(g - lastG) > 0.0004;
     if (changed) {

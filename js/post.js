@@ -102,7 +102,6 @@
     // the rounded leading edge of the outermost feather: a wing has thickness
     el('path', { d: `M-3 -2C-6 -30 -5 -62 -1 ${f1(-PRIM_LEN[0] * 0.98)}`, class: 'f-edge' }, prims[0].g);
     el('path', { d: ARM_D, class: 'f-cov' }, g);
-    if (FELT) el('path', { d: ARM_D, fill: 'url(#pg-grain)' }, g);
     el('path', { d: ARM_DETAIL_D, class: 'f-detail' }, g);
     // ...and of the arm, so the wing never vanishes to a hairline edge-on
     el('path', { d: 'M-4 6C-16 -14 -16 -48 -6 -74C-2 -79 2 -80 6 -78', class: 'f-edge' }, g);
@@ -372,13 +371,18 @@
     // ---- stage + engine ----
     const stage = document.createElement('div');
     stage.className = FELT ? 'post-stage is-felt' : 'post-stage';
-    stage.innerHTML = `<svg viewBox="0 0 ${vw} ${vh}" width="${vw}" height="${vh}" aria-hidden="true">${stageDefs()}<g class="post-shadowed" filter="url(#pg-shadow)"></g><g class="post-fx"></g></svg>
+    document.body.classList.add('is-posting');
+    stage.innerHTML = `<svg viewBox="0 0 ${vw} ${vh}" width="${vw}" height="${vh}" aria-hidden="true">${stageDefs()}<g class="post-shadows"></g><g class="post-shadowed"></g><g class="post-fx"></g></svg>
       <p class="post-skip">tap to skip</p>`;
     document.body.appendChild(stage);
     const svg = stage.querySelector('svg');
     const layer = svg.querySelector('.post-shadowed');
     const fx = svg.querySelector('.post-fx');
-    const shadowFx = svg.querySelector('feDropShadow');
+    const shGroup = svg.querySelector('.post-shadows');
+    const shDefs = svg.querySelector('defs');
+    shDefs.insertAdjacentHTML('beforeend', '<radialGradient id="post-sh"><stop offset="0" stop-color="#1b1008" stop-opacity=".34"/><stop offset=".55" stop-color="#1b1008" stop-opacity=".2"/><stop offset="1" stop-color="#1b1008" stop-opacity="0"/></radialGradient>');
+    const scrollShadow = el('ellipse', { rx: 1, ry: 1, fill: 'url(#post-sh)', opacity: 0 }, shGroup);
+    const pigShadow = el('ellipse', { rx: 1, ry: 1, fill: 'url(#post-sh)', opacity: 0 }, shGroup);
     const neckStops = svg.querySelectorAll('#pg-neck stop[data-n]');
 
     let aborted = false;
@@ -563,10 +567,16 @@
         renderScroll();
         renderPigeon();
         renderParticles();
-        const lift = P.visible ? P.lift : 0.15;
-        shadowFx.setAttribute('dx', f1((6 + 18 * lift) * (narrow ? 0.7 : 1)));
-        shadowFx.setAttribute('dy', f1((8 + 30 * lift) * (narrow ? 0.7 : 1)));
-        shadowFx.setAttribute('stdDeviation', f1(2.5 + 7 * lift));
+        const k = narrow ? 0.7 : 1;
+        if (S.visible) {
+          scrollShadow.setAttribute('opacity', 1);
+          scrollShadow.setAttribute('transform', `translate(${f1(S.x + 5 * k)} ${f1(S.y + S.T * 0.55 * S.s)}) rotate(${f1(S.rot)}) scale(${f1(S.len * 0.58 * S.s)} ${f1(S.T * 0.42 * S.s)})`);
+        }
+        if (P.visible) {
+          const lift = P.lift;
+          pigShadow.setAttribute('opacity', f3(1 - lift * 0.45));
+          pigShadow.setAttribute('transform', `translate(${f1(P.x + (8 + 26 * lift) * k)} ${f1(P.y + (14 + 40 * lift) * k + 20 * P.s)}) rotate(${f1(P.pitch)}) scale(${f1(105 * P.s * (1 + lift * 0.25))} ${f1(48 * P.s * (1 + lift * 0.25))})`);
+        }
       }
       rafId = requestAnimationFrame(loop);
     }
@@ -579,13 +589,14 @@
       clearTimeout(skipHint);
       tasks.splice(0).forEach((k) => k.resolve());
       stage.remove();
+      document.body.classList.remove('is-posting');
       form.style.clipPath = 'inset(0 0 100% 0)';
     }
 
     /* ======================= the story ======================= */
 
     async function sequence() {
-      /* 1. the letter rolls up from the bottom; the page follows the roll */
+      /* 1. the letter rolls up from the bottom (the page stays still, so nothing else repaints) */
       // The letter sits at a slight tilt, so the roll follows the letter's own
       // (tilted) edge rather than a level line, and leans to match it.
       const r0 = form.getBoundingClientRect();
@@ -593,15 +604,12 @@
       const m = new DOMMatrixReadOnly(getComputedStyle(form).transform);
       const tilt = Math.atan2(m.b, m.a);
       const pcx = r0.left + r0.width / 2 + window.scrollX, pcy = r0.top + r0.height / 2 + window.scrollY;
-      const rollStart = window.scrollY;
       Object.assign(S, { visible: true, len: W, T: 14, lip: 1, spin: 0, rot: (tilt * 180) / Math.PI });
       scroll.g.style.display = '';
       const place = (e) => {
         const ly = Hh / 2 - Hh * e;                    // roll line, in the letter's own frame from its centre
         const x = pcx - Math.sin(tilt) * ly, y = pcy + Math.cos(tilt) * ly;
         form.style.clipPath = `inset(0 0 ${(e * 100).toFixed(2)}% 0)`;
-        const want = Math.min(rollStart, y - vh * 0.55);
-        if (want < window.scrollY) window.scrollTo({ top: Math.max(0, want), behavior: 'instant' });
         S.T = lerp(14, 36, Math.sqrt(e));
         S.x = x - window.scrollX;
         S.y = y - window.scrollY;

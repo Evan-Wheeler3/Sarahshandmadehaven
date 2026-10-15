@@ -872,3 +872,8 @@ main {
 .is-felt .price-tag { filter: url(#felt-ui); background: #f0dcb2; clip-path: none; border-radius: 6px 14px 14px 6px; }
 .is-felt .seal__wax { filter: url(#felt-ui); box-shadow: none; }
 .is-felt .footer__mark { filter: url(#felt-ui); text-shadow: none; color: #f3e6cb; }
+
+/* keep felt-filtered pieces on their own layers so they're drawn once, not on every scroll frame */
+.is-felt .topnav,
+.is-felt .hero__stage,
+.is-felt .seal { will-change: transform; }
