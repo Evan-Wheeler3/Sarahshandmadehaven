@@ -363,9 +363,24 @@
   const SPARK_D = 'M0 -7L1.3 -1.3L7 0L1.3 1.3L0 7L-1.3 1.3L-7 0L-1.3 -1.3Z';
   const DOWN_D = featherD(24, 10);
 
+  // The part of the screen actually visible (on phones this can differ from
+  // the layout viewport, e.g. right after the keyboard closes).
+  function visibleArea() {
+    const v = window.visualViewport;
+    return v ? { x: v.offsetLeft, y: v.offsetTop, w: v.width, h: v.height } : { x: 0, y: 0, w: window.innerWidth, h: window.innerHeight };
+  }
+
   async function play(form) {
     if (!form.animate) return;
+    // close the keyboard first and let the screen settle, so everything is
+    // measured against what's really on screen
+    const ae = document.activeElement;
+    if (ae && ae !== document.body && /INPUT|TEXTAREA|SELECT/.test(ae.tagName)) {
+      ae.blur();
+      await new Promise((r) => setTimeout(r, 450));
+    }
     const vw = window.innerWidth, vh = window.innerHeight;
+    const view = visibleArea();
     const narrow = vw < 600;
 
     // ---- stage + engine ----
@@ -591,6 +606,7 @@
       stage.remove();
       document.body.classList.remove('is-posting');
       form.style.clipPath = 'inset(0 0 100% 0)';
+      form.style.willChange = '';
     }
 
     /* ======================= the story ======================= */
@@ -603,16 +619,21 @@
       const W = form.offsetWidth, Hh = form.offsetHeight;
       const m = new DOMMatrixReadOnly(getComputedStyle(form).transform);
       const tilt = Math.atan2(m.b, m.a);
-      const pcx = r0.left + r0.width / 2 + window.scrollX, pcy = r0.top + r0.height / 2 + window.scrollY;
+      const pcx = r0.left + r0.width / 2, pcy = r0.top + r0.height / 2;
+      const baseTf = getComputedStyle(form).transform;
+      const hold = view.y + view.h * 0.55;   // the roll stops rising here; the letter slides down instead
+      form.style.willChange = 'transform, clip-path';
       Object.assign(S, { visible: true, len: W, T: 14, lip: 1, spin: 0, rot: (tilt * 180) / Math.PI });
       scroll.g.style.display = '';
       const place = (e) => {
         const ly = Hh / 2 - Hh * e;                    // roll line, in the letter's own frame from its centre
         const x = pcx - Math.sin(tilt) * ly, y = pcy + Math.cos(tilt) * ly;
+        const shift = Math.max(0, hold - y);
+        form.style.transform = `translateY(${shift.toFixed(1)}px) ${baseTf === 'none' ? '' : baseTf}`;
         form.style.clipPath = `inset(0 0 ${(e * 100).toFixed(2)}% 0)`;
         S.T = lerp(14, 36, Math.sqrt(e));
-        S.x = x - window.scrollX;
-        S.y = y - window.scrollY;
+        S.x = x;
+        S.y = y + shift;
         S.spin = Hh * e * 0.55;   // the paper's surface turns as it rolls
       };
       place(0);
@@ -620,7 +641,7 @@
       if (aborted) return;
 
       /* 2. it lifts off the wall, shrinks into a scroll and floats to the middle */
-      const cx = vw / 2, cy = vh * (narrow ? 0.64 : 0.62);
+      const cx = view.x + view.w / 2, cy = view.y + view.h * (narrow ? 0.6 : 0.62);
       const L1 = narrow ? 170 : 220, T1 = narrow ? 40 : 46;
       const from = { x: S.x, y: S.y, len: S.len, T: S.T, rot: S.rot };
       await anim(700, (t) => {
@@ -673,7 +694,7 @@
       const s = sLand;
       const T = S.T;
       const tx = cx - 6 * s, ty = cy - T / 2 - 55 * s;
-      const P0 = [vw + 240 * s, vh * 0.1], P1 = [vw * 0.86, vh * 0.78];
+      const P0 = [view.x + view.w + 240 * s, view.y + view.h * 0.1], P1 = [view.x + view.w * 0.86, view.y + view.h * 0.78];
       const P2 = [tx + 260 * s, ty + 30], P3 = [tx, ty - 34];
       Object.assign(P, { visible: true, x: P0[0], y: P0[1], s: s * 0.45, ph: 0.1, freq: 3.2, amp: 1, tuck: 0, ext: 0, grip: 1, lift: 1 });
       pig.root.style.display = '';
@@ -748,7 +769,7 @@
         });
       }
       const L0 = [P.x, P.y];
-      const Q1 = [P.x - 60 * s, P.y - 190 * s], Q2 = [vw * 0.4, vh * 0.2], Q3 = [-380 * s, vh * 0.04];
+      const Q1 = [P.x - 60 * s, P.y - 190 * s], Q2 = [view.x + view.w * 0.4, view.y + view.h * 0.2], Q3 = [view.x - 380 * s, view.y + view.h * 0.04];
       prev = L0.slice();
       await anim(2000, (t) => {
         const u = Math.pow(t, 1.45);

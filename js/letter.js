@@ -211,6 +211,7 @@
   function showSent() {
     form.hidden = true;
     form.style.clipPath = '';
+    form.style.transform = '';
     sent.hidden = false;
     if (!reduceMotion && sent.animate) {
       sent.animate(
@@ -234,6 +235,7 @@
     sent.hidden = true;
     form.hidden = false;
     form.style.clipPath = '';
+    form.style.transform = '';
     fitAll();
     form.scrollIntoView({ block: 'start', behavior: reduceMotion ? 'auto' : 'smooth' });
   });
