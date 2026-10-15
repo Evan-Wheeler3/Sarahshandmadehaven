@@ -26,6 +26,9 @@
   const smooth = (t) => t * t * (3 - 2 * t);
   const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
+  const TOWER_STONE = 2.2;   // tower stones are this much bigger than the wall's
+  const FADE = [0.55, 0.75];  // stretch of the zoom where tower stones dissolve into the wall's
+
   const S = {
     dpr: 1, vw: 0, vh: 0, L: null,
     mips: [], patterns: [], tileW: 0, tileH: 0, tint: null,
@@ -83,10 +86,11 @@
   function makeEdge(L, rnd) {
     const ys = [];
     if (S.rows && S.rows.length > 1 && S.tileH) {
-      const n0 = Math.floor(((L.topY - L.tw - L.F.y) * L.Z) / S.tileH) - 1;
-      const n1 = Math.ceil(((L.baseY - L.F.y) * L.Z) / S.tileH) + 1;
+      const sc = TOWER_STONE / L.Z;
+      const n0 = Math.floor((L.topY - L.tw - L.F.y) / (S.tileH * sc)) - 1;
+      const n1 = Math.ceil((L.baseY - L.F.y) / (S.tileH * sc)) + 1;
       for (let n = n0; n <= n1; n++) {
-        for (let r = 0; r < S.rows.length - 1; r++) ys.push(L.F.y + (S.rows[r] + n * S.tileH) / L.Z);
+        for (let r = 0; r < S.rows.length - 1; r++) ys.push(L.F.y + (S.rows[r] + n * S.tileH) * sc);
       }
     }
     const rowsIn = ys.filter((y) => y > L.topY - 1 && y < L.baseY + 1);
@@ -181,46 +185,15 @@
     ctx.setTransform(d * z, 0, 0, d * z, d * (fx - L.F.x * z), d * (fy - L.F.y * z));
   }
 
-  function stonePattern(z) {
+  function stonePattern(z, m = 1) {
     const L = S.L;
-    const want = (z / L.Z) * (S.dpr / S.tileDpr); // device px per base-tile px
+    const want = ((z * m) / L.Z) * (S.dpr / S.tileDpr); // device px per base-tile px
     let i = Math.floor(Math.log2(1 / Math.max(want, 1e-4)));
     i = clamp(i, 0, S.patterns.length - 1);
     const pat = S.patterns[i];
-    const k = (S.mips[0].width / S.mips[i].width) / (L.Z * S.tileDpr);
+    const k = ((S.mips[0].width / S.mips[i].width) * m) / (L.Z * S.tileDpr);
     pat.setTransform(new DOMMatrix([k, 0, 0, k, L.F.x, L.F.y]));
-    pat.k = k;
     return pat;
-  }
-
-  // Fill a shape with stone wrapped round a cylinder of half-width hw: the
-  // texture is drawn in thin vertical strips, each squeezed by how far the
-  // surface has turned away. curv 0 is flat (and exactly matches the wall).
-  function fillCylinder(pat, shape, hw, curv) {
-    const L = S.L, k = pat.k;
-    const top = L.topY - L.tw * 1.2, height = L.baseY - top + L.tw;
-    ctx.save();
-    shape();
-    ctx.clip();
-    if (curv < 0.01) {
-      pat.setTransform(new DOMMatrix([k, 0, 0, k, L.F.x, L.F.y]));
-      ctx.fillStyle = pat;
-      ctx.fillRect(L.cx - hw * 1.4, top, hw * 2.8, height);
-      ctx.restore();
-      return;
-    }
-    const R = hw / 0.92 / curv;
-    const uOf = (X) => R * Math.asin(clamp(X / R, -0.999, 0.999));
-    const N = 28, X0 = -hw * 1.12, X1 = hw * 1.12;
-    ctx.fillStyle = pat;
-    for (let i = 0; i < N; i++) {
-      const xa = X0 + ((X1 - X0) * i) / N, xb = X0 + ((X1 - X0) * (i + 1)) / N;
-      const ua = uOf(xa), ub = uOf(xb);
-      const sx = (xb - xa) / (ub - ua);
-      pat.setTransform(new DOMMatrix([k * sx, 0, 0, k, L.cx + xa - ua * sx, L.F.y]));
-      ctx.fillRect(L.cx + xa - 0.25, top, xb - xa + 0.5, height);
-    }
-    ctx.restore();
   }
 
   /* ---------- painting ---------- */
@@ -370,12 +343,9 @@
   function drawTower(cam, p) {
     const L = S.L, tw = L.tw;
     setCam(cam, 1);
-    const pat = stonePattern(cam.z);
     const shade = 1 - smooth(clamp((p - 0.1) / 0.6, 0, 1));
-    // Hold the curve steady while the tower is in view, and only flatten it
-    // in the middle of the zoom, when the camera is moving fast enough to
-    // hide the change. Flat by the end, so it matches the wall exactly.
-    const curv = 1 - easeInOut(clamp((p - 0.38) / 0.4, 0, 1));
+    const fade = reduceMotion ? 0 : smooth(clamp((p - FADE[0]) / (FADE[1] - FADE[0]), 0, 1));
+    const pat = stonePattern(cam.z, TOWER_STONE);
     const pw = tw * 0.62, pTop = L.topY - tw * 0.32, mh = tw * 0.3;
 
     // the far side of the parapet, seen through the gaps in the battlements
@@ -393,8 +363,17 @@
       ctx.restore();
     }
 
-    fillCylinder(pat, () => towerBody(), tw * 0.5, curv);
-    fillCylinder(pat, () => parapet(), pw, curv);
+    ctx.fillStyle = pat;
+    towerBody(); ctx.fill();
+    parapet(); ctx.fill();
+    if (fade > 0.001) {
+      // the wall's own stones fade in, so the zoom lands exactly on the wall
+      ctx.globalAlpha = fade;
+      ctx.fillStyle = stonePattern(cam.z, 1);
+      towerBody(); ctx.fill();
+      parapet(); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
 
     if (S.tint) {
       ctx.save();
@@ -758,7 +737,9 @@
 
     const p = S.p;
     const cam = camera(p);
-    const scale = cam.z / L.Z;           // screen px per tile px
+    // screen px per tile px: the tower's bigger stones until they dissolve into the wall's
+    const towerPhase = !reduceMotion && p < (FADE[0] + FADE[1]) / 2;
+    const scale = (cam.z / L.Z) * (towerPhase ? TOWER_STONE : 1);
     const tileW = S.tileW * scale, tileH = S.tileH * scale;
     const covered = p > 0.985;
 
