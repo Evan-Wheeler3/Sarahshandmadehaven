@@ -210,6 +210,9 @@
     const g = el('g', { class: 'sc' }, parent);
     // the paper darkening as it curls into the roll (only while rolling)
     const lip = el('rect', { fill: 'url(#sc-lip)', opacity: 0 }, g);
+    // Seen from slightly to the left: the spiral face shows on the left end
+    // only, and the right end is just the rounded outside of the roll.
+    const farEnd = el('ellipse', { fill: 'url(#sc-body)' }, g);
     const body = el('rect', { fill: 'url(#sc-body)' }, g);
     const clip = el('clipPath', { id: 'sc-clip' }, g);
     const clipRect = el('rect', null, clip);
@@ -225,12 +228,9 @@
     }
     el('path', { d: 'M-100 -9C-50 -11 50 -6 100 -10', class: 'sc-edge' }, skin);
     const shine = el('rect', { fill: 'url(#sc-shine)' }, g);
-    const ends = [-1, 1].map(() => {
-      const e = el('g', null, g);
-      el('ellipse', { cx: 0, cy: 0, rx: 0.36, ry: 1, class: 'sc-cap' }, e);
-      el('path', { d: spiralD(), class: 'sc-spiral' }, e);
-      return e;
-    });
+    const end = el('g', null, g);
+    el('ellipse', { cx: 0, cy: 0, rx: 0.36, ry: 1, class: 'sc-cap' }, end);
+    el('path', { d: spiralD(), class: 'sc-spiral' }, end);
     const twine = el('g', null, g);
     const wraps = ['M-11 -23C-9 -10 -7 10 -4 23', 'M3 -23C5 -10 7 10 10 23'].map((d) =>
       el('path', { d, class: 'sc-twine', pathLength: 1, 'stroke-dasharray': '1 1', 'stroke-dashoffset': 1 }, twine));
@@ -246,7 +246,7 @@
     el('circle', { r: 11.5, cy: 0.9, fill: 'none', stroke: 'rgba(255,190,170,.35)', 'stroke-width': 0.8 }, emboss);
     el('text', { y: 6.2, 'text-anchor': 'middle', class: 'sc-mono sc-mono--hi' }, emboss).textContent = 'S';
     el('text', { y: 5.4, 'text-anchor': 'middle', class: 'sc-mono' }, emboss).textContent = 'S';
-    return { g, lip, body, clipRect, skin, shine, ends, twine, wraps, tails, wax, drips, blob, emboss };
+    return { g, lip, farEnd, body, clipRect, skin, shine, end, twine, wraps, tails, wax, drips, blob, emboss };
   }
 
   function spiralD() {
@@ -427,8 +427,10 @@
         r.setAttribute('y', f1(-T / 2));
         r.setAttribute('width', f1(L));
         r.setAttribute('height', f1(T));
-        r.setAttribute('rx', f1(T * 0.14));
       }
+      scroll.farEnd.setAttribute('cx', f1(L / 2));
+      scroll.farEnd.setAttribute('rx', f1(T * 0.18));
+      scroll.farEnd.setAttribute('ry', f1(T / 2));
       const spin = ((S.spin % 44) + 44) % 44 - 22;
       scroll.skin.setAttribute('transform', `scale(${f3(L / 200)} ${f3(T / 44)}) translate(0 ${f1(-spin)})`);
       scroll.lip.setAttribute('opacity', f3(S.lip));
@@ -438,8 +440,7 @@
         scroll.lip.setAttribute('y', f1(-T / 2 - T * 0.9));
         scroll.lip.setAttribute('height', f1(T * 1.2));
       }
-      scroll.ends[0].setAttribute('transform', `translate(${f1(-L / 2)} 0) scale(${f1(T / 2)})`);
-      scroll.ends[1].setAttribute('transform', `translate(${f1(L / 2)} 0) scale(${f1(T / 2)})`);
+      scroll.end.setAttribute('transform', `translate(${f1(-L / 2)} 0) scale(${f1(T / 2)})`);
       const k = T / 44;
       scroll.twine.setAttribute('transform', `scale(${f3(k)})`);
       scroll.wraps.forEach((w, i) => w.setAttribute('stroke-dashoffset', f3(1 - clamp(S.tie * 2 - i, 0, 1))));
