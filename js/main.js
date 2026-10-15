@@ -8,6 +8,11 @@
 
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+  /* Start at the top on every load (see the note in index.html) */
+  const toTop = () => window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  toTop();
+  window.addEventListener('load', toTop);
+
   /* Instagram links */
   document.querySelectorAll('[data-ig]').forEach((a) => {
     a.href = a.dataset.ig === 'dm'
