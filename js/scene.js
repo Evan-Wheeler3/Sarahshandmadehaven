@@ -209,7 +209,7 @@
       ctx.restore();
       return;
     }
-    const R = hw / 0.95 / curv;
+    const R = hw / 0.92 / curv;
     const uOf = (X) => R * Math.asin(clamp(X / R, -0.999, 0.999));
     const N = 28, X0 = -hw * 1.12, X1 = hw * 1.12;
     ctx.fillStyle = pat;
@@ -372,7 +372,10 @@
     setCam(cam, 1);
     const pat = stonePattern(cam.z);
     const shade = 1 - smooth(clamp((p - 0.1) / 0.6, 0, 1));
-    const curv = 1 - smooth(clamp(p / 0.5, 0, 1));
+    // Hold the curve steady while the tower is in view, and only flatten it
+    // in the middle of the zoom, when the camera is moving fast enough to
+    // hide the change. Flat by the end, so it matches the wall exactly.
+    const curv = 1 - easeInOut(clamp((p - 0.38) / 0.4, 0, 1));
     const pw = tw * 0.62, pTop = L.topY - tw * 0.32, mh = tw * 0.3;
 
     // the far side of the parapet, seen through the gaps in the battlements
