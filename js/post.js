@@ -102,6 +102,7 @@
     // the rounded leading edge of the outermost feather: a wing has thickness
     el('path', { d: `M-3 -2C-6 -30 -5 -62 -1 ${f1(-PRIM_LEN[0] * 0.98)}`, class: 'f-edge' }, prims[0].g);
     el('path', { d: ARM_D, class: 'f-cov' }, g);
+    if (FELT) el('path', { d: ARM_D, fill: 'url(#pg-grain)' }, g);
     el('path', { d: ARM_DETAIL_D, class: 'f-detail' }, g);
     // ...and of the arm, so the wing never vanishes to a hairline edge-on
     el('path', { d: 'M-4 6C-16 -14 -16 -48 -6 -74C-2 -79 2 -80 6 -78', class: 'f-edge' }, g);
@@ -128,11 +129,16 @@
     el('path', { d: BODY_D, fill: 'url(#pg-body)', class: 'pg-outline' }, root);
     el('path', { d: BREAST_D, fill: 'url(#pg-breast)' }, root);
     el('path', { d: BELLY_D, fill: 'rgba(255,255,255,.18)' }, root);
+    if (FELT) el('path', { d: BODY_D, fill: 'url(#pg-grain)' }, root);
     el('path', { d: 'M-72 18C-42 36 8 38 64 16', class: 'pg-stitch' }, root);
     el('path', { d: 'M-40 -44C-20 -46 20 -40 60 -24', class: 'pg-stitch' }, root);
     const head = el('g', null, root);
     const neck = el('path', { d: NECK_D, fill: 'url(#pg-neck)', class: 'pg-outline' }, head);
     el('ellipse', { cx: -60, cy: -84, rx: 19.5, ry: 16.5, fill: 'url(#pg-head)', class: 'pg-outline' }, head);
+    if (FELT) {
+      el('path', { d: NECK_D, fill: 'url(#pg-grain)' }, head);
+      el('ellipse', { cx: -60, cy: -84, rx: 19.5, ry: 16.5, fill: 'url(#pg-grain)' }, head);
+    }
     el('path', { d: 'M-78 -89L-101 -82.5Q-97 -79 -78 -78Z', fill: '#3f3838' }, head);
     el('ellipse', { cx: -79, cy: -88.5, rx: 5.2, ry: 3.3, fill: '#efece4' }, head);
     el('circle', { cx: -66, cy: -89, r: 4.6, fill: '#e98a2c' }, head);
@@ -348,13 +354,11 @@
   let grainUrl = null;
   function stageDefs() {
     if (!FELT) return DEFS.replace('__GRAIN__', '').replace('__IN__', '');
-    if (!grainUrl) grainUrl = window.HavenFelt.grain(160, 13, 1.5).toDataURL('image/png');
-    return DEFS.replace('__GRAIN__', `
-        <feImage href="${grainUrl}" x="0" y="0" width="160" height="160" result="g"/>
-        <feTile in="g" result="gt"/>
-        <feComposite in="gt" in2="SourceAlpha" operator="in" result="gi"/>
-        <feMerge result="felted"><feMergeNode in="SourceGraphic"/><feMergeNode in="gi"/></feMerge>`)
-      .replace('__IN__', 'in="felted"');
+    // a pre-drawn fibre texture used as a fill, instead of a live filter
+    if (!grainUrl) grainUrl = window.HavenFelt.grain(160, 13, 2).toDataURL('image/png');
+    return DEFS.replace('__GRAIN__', '').replace('__IN__', '')
+      .replace('</defs>', `<pattern id="pg-grain" patternUnits="userSpaceOnUse" width="80" height="80">
+        <image href="${grainUrl}" width="80" height="80"/></pattern></defs>`);
   }
 
   const SPARK_D = 'M0 -7L1.3 -1.3L7 0L1.3 1.3L0 7L-1.3 1.3L-7 0L-1.3 -1.3Z';

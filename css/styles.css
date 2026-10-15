@@ -92,31 +92,6 @@ p { margin: 0 0 1.1em; }
   transition: opacity 0.6s ease;
 }
 #ivy.is-growing { opacity: 1; }
-#ivy .vine {
-  fill: none;
-  stroke: #45491f;
-  stroke-width: 4.2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-#ivy .vine--twig { stroke-width: 2.5; stroke: #50552a; }
-#ivy.is-felt .vines { filter: none; }
-#ivy .vine-hi { fill: none; stroke: #8b9a4e; stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; opacity: .8; }
-#ivy .vines { filter: drop-shadow(1px 2px 1.5px rgba(20, 12, 5, 0.35)); }
-#ivy .leaf__in {
-  transform: scale(0);
-  transition: transform 0.55s cubic-bezier(0.3, 1.6, 0.5, 1);
-}
-#ivy .leaf.on .leaf__in { transform: scale(1); }
-#ivy .flower__in {
-  transform: scale(0) rotate(-120deg);
-  transition: transform 0.9s cubic-bezier(0.3, 1.5, 0.5, 1);
-}
-#ivy .flower.on .flower__in { transform: none; }
-@media (prefers-reduced-motion: reduce) {
-  #ivy .leaf__in,
-  #ivy .flower__in { transition: none; }
-}
 
 /* ---------- nav ---------- */
 
@@ -843,10 +818,8 @@ main {
 .post-stage.is-felt .pg .f-prim,
 .post-stage.is-felt .pg .pg-outline,
 .post-stage.is-felt .pg .f-tail {
-  stroke: rgba(78, 84, 100, 0.5);
-  stroke-width: 2.2;
-  stroke-dasharray: 0.4 1.3;
-  stroke-linecap: round;
+  stroke: rgba(78, 84, 100, 0.38);
+  stroke-width: 1.8;
 }
 .post-stage.is-felt .pg .f-rachis { display: none; }
 .post-stage.is-felt .pg .f-detail,
@@ -861,7 +834,7 @@ main {
 .post-stage.is-felt .pg .pg-stitch { stroke: #eef1f6; }
 .post-stage.is-felt .pg-wing.is-under .pg-stitch,
 .post-stage.is-felt .pg-wing.is-under .f-detail { stroke: #8d95a4; }
-.post-stage.is-felt .sc .sc-blob { stroke: rgba(110, 40, 26, 0.55); stroke-width: 2; stroke-dasharray: 0.4 1.3; stroke-linecap: round; }
+.post-stage.is-felt .sc .sc-blob { stroke: rgba(110, 40, 26, 0.45); stroke-width: 1.6; }
 .post-stage.is-felt .sc .sc-btn-ring { fill: none; stroke: rgba(255, 220, 200, 0.7); stroke-width: 1.3; stroke-dasharray: 2.6 2.2; }
 .post-stage.is-felt .sc .sc-btn-x { stroke: #fff1dc; stroke-width: 1.6; stroke-linecap: round; }
 .post-stage.is-felt .sc .sc-edge { stroke-dasharray: 4 3; stroke: rgba(150, 120, 80, 0.7); }

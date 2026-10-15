@@ -37,7 +37,7 @@
     dpr: 1, vw: 0, vh: 0, L: null,
     mips: [], patterns: [], tileW: 0, tileH: 0, tint: null,
     p: 0, target: 0, t: 0, pulseUntil: 0,
-    zoomEnd: 1, motes: [], drawnP: -1, dirty: true
+    zoomEnd: 1, motes: [], drawnP: -1, dirty: true, tick: 0
   };
 
   /* ---------- layout ---------- */
@@ -159,7 +159,7 @@
     const k = clamp(tw / 128, 0.45, 1);   // felt detail scale for the tower pieces
 
     // sky: a pale blue felt sheet with a cream band of distant fields
-    out.sky = sprite(0, 0, vw, vh, Math.min(dpr, 1.5), (x) => {
+    out.sky = sprite(0, 0, vw, vh, dpr, (x) => {
       x.fillStyle = '#d6ded7';
       x.fillRect(0, 0, vw, vh);
       F.grainOver(x, 0, 0, vw, vh, 1.2, 1, 11);
@@ -192,7 +192,7 @@
     });
 
     // two layers of distant hills
-    const hillRes = Math.min(dpr, 1.5);
+    const hillRes = Math.min(dpr, 1.2);
     out.far = sprite(-vw * 0.6, vh * 0.6, vw * 2.2, vh * 0.7, hillRes, (x) => {
       const pts = hillPts(vh * 0.74, vh * 0.03, 0.004, 0.011, 1.2, -vw * 0.6, vw * 1.6, vh * 1.3);
       F.piece(x, pts, '#a9b89c', { rnd: R(30), scale: 1.2, puff: 0.7 });
@@ -207,7 +207,7 @@
     // the ground the tower stands on: green felt, blanket-stitched edge, thread grass, felt flowers
     const gx0 = -vw * 0.6, gx1 = vw * 1.6, gTop = L.groundY - tw * 0.3 - 30, gBot = L.groundY + vh * 0.3;
     out.groundBottom = gBot;
-    out.ground = sprite(gx0, gTop, gx1 - gx0, gBot - gTop, Math.min(dpr * 1.5, 3), (x) => {
+    out.ground = sprite(gx0, gTop, gx1 - gx0, gBot - gTop, dpr * 1.2, (x) => {
       const pts = [[gx0, gBot + 40]];
       for (let px = gx0; px <= gx1; px += 8) pts.push([px, groundCrest(L, px)]);
       pts.push([gx1, gBot + 40]);
@@ -225,7 +225,7 @@
     // battlements and the overhanging parapet, built from felt stones
     const pp = parapetPts(L);
     const pBox = [L.cx - pp.pw - 14, pp.pTop - pp.mh - 14, pp.pw * 2 + 28, tw * 0.75 + pp.mh + 30];
-    out.parapet = sprite(pBox[0], pBox[1], pBox[2], pBox[3], dpr * 3, (x) => {
+    out.parapet = sprite(pBox[0], pBox[1], pBox[2], pBox[3], dpr * 1.8, (x) => {
       const r = R(50);
       F.piece(x, pp.pts, '#5d4129', { rnd: r, scale: k, puff: 0.8 });
       const cols = ['#e3bf87', '#d9ab6c', '#ecd3a2', '#d39a6a', '#e8c48f', '#dcb57b'];
@@ -255,7 +255,7 @@
 
     // the glowing window
     const w = L.winW, wb = [L.cx - w - 10, L.winTop - w * 0.5, w * 2 + 20, L.winH + w + 10];
-    out.window = sprite(wb[0], wb[1], wb[2], wb[3], dpr * 3, (x) => {
+    out.window = sprite(wb[0], wb[1], wb[2], wb[3], dpr * 1.8, (x) => {
       const r = R(60);
       const fr = archPts(L.cx, L.winTop - tw * 0.1, w + tw * 0.2, L.winBottom + tw * 0.03);
       F.piece(x, fr, '#f2e4c4', { rnd: r, scale: k, puff: 1 });
@@ -273,13 +273,13 @@
     });
 
     // the arrow slit
-    out.slit = sprite(L.cx - tw * 0.12, L.slitY - 8, tw * 0.24, tw * 0.42 + 16, dpr * 3, (x) => {
+    out.slit = sprite(L.cx - tw * 0.12, L.slitY - 8, tw * 0.24, tw * 0.42 + 16, dpr * 1.8, (x) => {
       F.piece(x, archPts(L.cx, L.slitY, tw * 0.09, L.slitY + tw * 0.42), '#2e1c10', { rnd: R(70), scale: k * 0.6, puff: 0.5 });
     });
 
     // the door: planks of brown felt stitched together, in a cream arch
     const dw = tw * 0.4, dTop = L.groundY - tw * 0.72;
-    out.door = sprite(L.cx - dw, dTop - dw * 0.4, dw * 2, L.groundY - dTop + dw * 0.6, dpr * 3, (x) => {
+    out.door = sprite(L.cx - dw, dTop - dw * 0.4, dw * 2, L.groundY - dTop + dw * 0.6, dpr * 1.8, (x) => {
       const r = R(80);
       F.piece(x, archPts(L.cx, dTop - tw * 0.08, dw + tw * 0.16, L.groundY + tw * 0.2), '#f2e4c4', { rnd: r, scale: k, puff: 1 });
       F.piece(x, archPts(L.cx, dTop, dw, L.groundY + tw * 0.2), '#7a4b2a', { rnd: r, scale: k, puff: 0.8 });
@@ -292,7 +292,7 @@
 
     // ivy climbing the foot of the tower
     const ib = [L.cx - tw * 0.95, L.groundY - tw * 2.6, tw * 1.9, tw * 2.7];
-    out.ivy = sprite(ib[0], ib[1], ib[2], ib[3], dpr * 2, (x) => {
+    out.ivy = sprite(ib[0], ib[1], ib[2], ib[3], dpr * 1.5, (x) => {
       const r = R(90), sc = tw / 120 * 1.3;
       const greens = ['#4f8a38', '#5f9a43', '#447a31', '#6aa64c'];
       const vine = (pts) => {
@@ -382,7 +382,7 @@
     S.tileW = w;
     // felt stones are big on the tower, so a shorter tile still never repeats there
     S.tileH = Math.round(w * (LOOK.felt ? (wide ? 1.45 : 3.2) : (wide ? 2.4 : 4.5)));
-    S.tileDpr = wide ? Math.min(S.dpr, 1.5) : S.dpr;
+    S.tileDpr = wide || LOOK.felt ? Math.min(S.dpr, 1.5) : S.dpr;
     const rowH = wide ? clamp(S.vw * 0.055, 60, 84) : 50;
     const base = window.HavenStone.makeTile(S.tileW, S.tileH, S.tileDpr, 1871, STYLE, rowH);
     S.sparkles = base.sparkles || [];
@@ -401,16 +401,20 @@
   }
 
   function resize() {
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    // felt is soft, so it doesn't need full retina resolution: fewer pixels per frame
+    const dpr = Math.min(window.devicePixelRatio || 1, LOOK.felt ? 1.5 : 2);
     const vw = window.innerWidth;
     const vh = canvas.clientHeight || window.innerHeight;
     const dprChanged = dpr !== S.dpr;
     S.dpr = dpr; S.vw = vw; S.vh = vh;
     canvas.width = Math.round(vw * dpr);
     canvas.height = Math.round(vh * dpr);
-    if (glintCanvas) {
+    if (glintCanvas && LOOK.glints) {
       glintCanvas.width = canvas.width;
       glintCanvas.height = canvas.height;
+    } else if (glintCanvas) {
+      glintCanvas.width = glintCanvas.height = 1;
+      glintCanvas.style.display = 'none';
     }
     if (dprChanged) S.mips = [];
     buildTexture();
@@ -1088,7 +1092,7 @@
   })();
 
   function drawGlints() {
-    if (!gctx) return;
+    if (!gctx || !LOOK.glints) return;
     const { vw, vh, dpr, L } = S;
     gctx.setTransform(1, 0, 0, 1, 0, 0);
     gctx.clearRect(0, 0, glintCanvas.width, glintCanvas.height);
@@ -1205,7 +1209,10 @@
 
     const live = S.p < 0.6; // window flicker, clouds and motes only matter while the tower is visible
     if (live) updateMotes(dt, S.p);
-    if (live || S.dirty || S.p !== S.drawnP) draw();
+    const moving = S.dirty || S.p !== S.drawnP;
+    // when only the flicker and clouds are changing, 30 frames a second is plenty
+    S.tick = (S.tick + 1) % 2;
+    if (moving || (live && S.tick === 0)) draw();
     drawGlints();
     syncChrome(S.p);
 
