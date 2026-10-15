@@ -71,7 +71,7 @@
   }
 
   function grow(spec, depth, ctx) {
-    const { rnd, band, vw, vh, gVines, gLeaves, gFlowers, leafScale } = ctx;
+    const { rnd, band, vw, vh, gVines, gLeaves, gFlowers, leafScale, blooms } = ctx;
     const step = 12;
     const n = Math.max(4, Math.round(spec.len / step));
     let x = spec.x, y = spec.y;
@@ -79,12 +79,12 @@
     const pm = Math.hypot(vx, vy); vx /= pm; vy /= pm;
     const px = vx, py = vy;
     const homeX = spec.side === 'left' ? band * 0.45 : vw - band * 0.45;
-    const pull = depth ? 0.012 : 0.05;
+    const pull = depth ? 0.006 : 0.028;
     const pts = [[x, y]];
     const branches = [];
 
     for (let i = 0; i < n; i++) {
-      const a = (rnd() - 0.5) * 0.55;
+      const a = (rnd() - 0.5) * 0.7;
       const ca = Math.cos(a), sa = Math.sin(a);
       [vx, vy] = [vx * ca - vy * sa, vx * sa + vy * ca];
       vx += clamp((homeX - x) / band, -1.2, 1.2) * pull + px * 0.05;
@@ -92,7 +92,7 @@
       const m = Math.hypot(vx, vy); vx /= m; vy /= m;
       x += vx * step; y += vy * step;
       pts.push([x, y]);
-      if (depth < 1 && i > 3 && i < n - 3 && rnd() < 0.05) branches.push(i);
+      if (depth < 1 && i > 3 && i < n - 3 && rnd() < 0.08) branches.push(i);
       if (y < -60 || y > vh + 60) break;
     }
 
@@ -125,19 +125,21 @@
       // every few leaves, a little blossom tucked against the vine
       if (--untilFlower <= 0) {
         untilFlower = 3 + Math.floor(rnd() * 4);
-        const n = rnd() < 0.3 ? 2 + Math.floor(rnd() * 2) : 1;
         const nx = -ty, ny = tx, nm = Math.hypot(nx, ny) || 1;
-        for (let k = 0; k < n; k++) {
-          const off = -side * (3 + rnd() * 5);
-          const fx = pts[i][0] + (nx / nm) * off + (rnd() - 0.5) * 8 * k;
-          const fy = pts[i][1] + (ny / nm) * off + (rnd() - 0.5) * 8 * k;
-          const fs = (0.9 + rnd() * 0.6) * leafScale * (k ? 0.75 : 1);
+        const off = -side * (3 + rnd() * 5);
+        const fx = pts[i][0] + (nx / nm) * off;
+        const fy = pts[i][1] + (ny / nm) * off;
+        const fs = (0.9 + rnd() * 0.6) * leafScale;
+        const r = 9.5 * fs; // the flower's radius on screen
+        // never stack: skip this spot if it would touch a flower already placed
+        const crowded = blooms.some((b) => Math.hypot(b.x - fx, b.y - fy) < (b.r + r) * 1.15);
+        if (!crowded) {
+          blooms.push({ x: fx, y: fy, r });
           const fg = el('g', {
             class: 'flower',
             transform: `translate(${fx.toFixed(1)} ${fy.toFixed(1)}) rotate(${(rnd() * 72).toFixed(0)}) scale(${fs.toFixed(2)})`
           }, gFlowers);
           const fin = el('g', { class: 'flower__in' }, fg);
-          fin.style.transitionDelay = `${(k * 0.12).toFixed(2)}s`;
           el('use', { href: '#ivy-flower', color: PETALS[Math.floor(rnd() * PETALS.length)] }, fin);
           // bloom a beat after the leaves around it
           vine.flowers.push({ g: fg, at: acc + 30, on: false });
@@ -154,7 +156,7 @@
       const ang = Math.atan2(py, px) + sign * (0.9 + rnd() * 0.6);
       const span = spec.s1 - spec.s0;
       const s0 = spec.s0 + (bi / n) * span;
-      const len = spec.len * (0.22 + rnd() * 0.25);
+      const len = spec.len * (0.3 + rnd() * 0.35);
       grow({
         x: pts[bi][0], y: pts[bi][1], dx: Math.cos(ang), dy: Math.sin(ang), side: spec.side, len,
         s0, s1: Math.min(1, s0 + (len / spec.len) * span * 1.4)
@@ -174,9 +176,9 @@
     const gFlowers = el('g', { class: 'flowers' }, svg);
 
     const rnd = window.HavenStone.mulberry32(20240607);
-    const band = clamp(vw * 0.17, 60, 300);
+    const band = clamp(vw * 0.25, 90, 400);
     const leafScale = vw < 700 ? 0.95 : 1.3;
-    const ctx = { rnd, band, vw, vh, gVines, gLeaves, gFlowers, leafScale };
+    const ctx = { rnd, band, vw, vh, gVines, gLeaves, gFlowers, leafScale, blooms: [] };
 
     const specs = [
       { x: band * 0.2, y: vh + 10, dx: 0.2, dy: -1, side: 'left', len: vh * 1.05, s0: 0.0, s1: 0.7 },
@@ -186,10 +188,10 @@
       { x: band * 0.55, y: -10, dx: 0.25, dy: 1, side: 'left', len: vh * 0.45, s0: 0.4, s1: 1 },
       { x: vw - band * 0.45, y: -10, dx: -0.25, dy: 1, side: 'right', len: vh * 0.55, s0: 0.3, s1: 0.95 }
     ];
-    if (vw > 1100) {
-      specs.push({ x: -10, y: vh * 0.55, dx: 1, dy: -0.3, side: 'left', len: band * 1.4, s0: 0.5, s1: 1 });
-      specs.push({ x: vw + 10, y: vh * 0.35, dx: -1, dy: 0.2, side: 'right', len: band * 1.4, s0: 0.55, s1: 1 });
-    }
+    specs.push({ x: -10, y: vh * 0.55, dx: 1, dy: -0.3, side: 'left', len: band * 1.6, s0: 0.35, s1: 0.95 });
+    specs.push({ x: vw + 10, y: vh * 0.35, dx: -1, dy: 0.2, side: 'right', len: band * 1.6, s0: 0.4, s1: 1 });
+    specs.push({ x: -10, y: vh * 0.25, dx: 1, dy: 0.25, side: 'left', len: band * 1.3, s0: 0.6, s1: 1 });
+    specs.push({ x: vw + 10, y: vh * 0.75, dx: -1, dy: -0.25, side: 'right', len: band * 1.3, s0: 0.2, s1: 0.8 });
     specs.forEach((s) => grow(s, 0, ctx));
     update(true);
   }
