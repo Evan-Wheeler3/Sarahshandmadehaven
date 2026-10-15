@@ -100,6 +100,8 @@ p { margin: 0 0 1.1em; }
   stroke-linejoin: round;
 }
 #ivy .vine--twig { stroke-width: 2.5; stroke: #50552a; }
+#ivy.is-felt .vines { filter: none; }
+#ivy .vine-hi { fill: none; stroke: #8b9a4e; stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; opacity: .8; }
 #ivy .vines { filter: drop-shadow(1px 2px 1.5px rgba(20, 12, 5, 0.35)); }
 #ivy .leaf__in {
   transform: scale(0);
@@ -834,3 +836,66 @@ main {
 .post-fx .fx-spark { fill: #fff3d0; }
 .post-fx .fx-speck { fill: #a4523f; }
 .post-fx .fx-down { fill: #eef1f5; stroke: #b6bdc9; stroke-width: 0.6; }
+
+/* felt look for the send animation: fibrous edges and sewn seams */
+.post-stage.is-felt .pg .f-cov,
+.post-stage.is-felt .pg .f-sec,
+.post-stage.is-felt .pg .f-prim,
+.post-stage.is-felt .pg .pg-outline,
+.post-stage.is-felt .pg .f-tail {
+  stroke: rgba(78, 84, 100, 0.5);
+  stroke-width: 2.2;
+  stroke-dasharray: 0.4 1.3;
+  stroke-linecap: round;
+}
+.post-stage.is-felt .pg .f-rachis { display: none; }
+.post-stage.is-felt .pg .f-detail,
+.post-stage.is-felt .pg .pg-stitch {
+  fill: none;
+  stroke: #eef1f6;
+  stroke-width: 1.5;
+  stroke-dasharray: 3.5 3;
+  stroke-linecap: round;
+}
+.post-stage .pg .pg-stitch { fill: none; stroke: none; }
+.post-stage.is-felt .pg .pg-stitch { stroke: #eef1f6; }
+.post-stage.is-felt .pg-wing.is-under .pg-stitch,
+.post-stage.is-felt .pg-wing.is-under .f-detail { stroke: #8d95a4; }
+.post-stage.is-felt .sc .sc-blob { stroke: rgba(110, 40, 26, 0.55); stroke-width: 2; stroke-dasharray: 0.4 1.3; stroke-linecap: round; }
+.post-stage.is-felt .sc .sc-btn-ring { fill: none; stroke: rgba(255, 220, 200, 0.7); stroke-width: 1.3; stroke-dasharray: 2.6 2.2; }
+.post-stage.is-felt .sc .sc-btn-x { stroke: #fff1dc; stroke-width: 1.6; stroke-linecap: round; }
+.post-stage.is-felt .sc .sc-edge { stroke-dasharray: 4 3; stroke: rgba(150, 120, 80, 0.7); }
+
+/* ---------- felt: title lettering, buttons, nav, tags ---------- */
+
+.is-felt .title { text-shadow: none; }
+.is-felt .title .ch { filter: url(#felt-ui); padding: 0 0.02em; }
+
+/* felt pieces sit behind the content of buttons and the nav, so text stays crisp */
+.is-felt .btn,
+.is-felt .topnav,
+.is-felt .price-tag {
+  isolation: isolate;
+  background: transparent;
+  box-shadow: none;
+}
+.is-felt .btn::before,
+.is-felt .topnav::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--felt, var(--rose));
+  filter: url(#felt-ui);
+}
+.is-felt .btn--ghost { --felt: var(--parchment-deep); }
+.is-felt .topnav { --felt: var(--parchment); }
+.is-felt .topnav__ig { box-shadow: none; }
+.is-felt .btn:hover,
+.is-felt .btn:active { box-shadow: none; }
+.is-felt .btn::after { border-width: 2px; border-color: rgba(255, 238, 215, 0.8); }
+.is-felt .btn--ghost::after { border-color: rgba(124, 58, 43, 0.55); }
+.is-felt .price-tag { filter: url(#felt-ui); background: #f0dcb2; clip-path: none; border-radius: 6px 14px 14px 6px; }
+.is-felt .seal__wax { filter: url(#felt-ui); box-shadow: none; }
+.is-felt .footer__mark { filter: url(#felt-ui); text-shadow: none; color: #f3e6cb; }

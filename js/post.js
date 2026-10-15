@@ -24,6 +24,10 @@
   };
   const bump = (t) => Math.sin(Math.PI * clamp(t, 0, 1)); // 0 → 1 → 0
 
+  // Felt is the default look; ?tower=sandstone or ?tower=grey keep the painted one.
+  const asked = new URLSearchParams(location.search).get('tower');
+  const FELT = !!window.HavenFelt && asked !== 'sandstone' && asked !== 'grey';
+
   function el(name, attrs, parent) {
     const e = document.createElementNS(NS, name);
     if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
@@ -91,6 +95,7 @@
       el('path', { d: featherD(len, 16), class: 'f-prim' }, fg);
       el('path', { d: featherD(len, 16, 0.56, 1), class: 'f-tip' }, fg);
       el('path', { d: `M0 -4L0 ${f1(-len * 0.93)}`, class: 'f-rachis' }, fg);
+      if (FELT && j < 6) el('path', { d: `M0 -6L0 ${f1(-len * 0.55)}`, class: 'pg-stitch' }, fg);
       prims[j] = { g: fg, base: -12 + j * 7, x: 1 + j * 0.9, y: -3 - j * 1.4 };
     }
     el('path', { d: ALULA_D, class: 'f-cov' }, hand);
@@ -123,6 +128,8 @@
     el('path', { d: BODY_D, fill: 'url(#pg-body)', class: 'pg-outline' }, root);
     el('path', { d: BREAST_D, fill: 'url(#pg-breast)' }, root);
     el('path', { d: BELLY_D, fill: 'rgba(255,255,255,.18)' }, root);
+    el('path', { d: 'M-72 18C-42 36 8 38 64 16', class: 'pg-stitch' }, root);
+    el('path', { d: 'M-40 -44C-20 -46 20 -40 60 -24', class: 'pg-stitch' }, root);
     const head = el('g', null, root);
     const neck = el('path', { d: NECK_D, fill: 'url(#pg-neck)', class: 'pg-outline' }, head);
     el('ellipse', { cx: -60, cy: -84, rx: 19.5, ry: 16.5, fill: 'url(#pg-head)', class: 'pg-outline' }, head);
@@ -131,6 +138,7 @@
     el('circle', { cx: -66, cy: -89, r: 4.6, fill: '#e98a2c' }, head);
     el('circle', { cx: -66.4, cy: -89, r: 2.2, fill: '#141414' }, head);
     el('circle', { cx: -67.6, cy: -90.4, r: 0.95, fill: '#fff' }, head);
+    el('path', { d: 'M-76 -70C-64 -64 -50 -64 -40 -70', class: 'pg-stitch' }, head);
     const lid = el('ellipse', { cx: -66, cy: -89, rx: 5.4, ry: 5.4, fill: '#9ba4b5' }, head);
     const near = buildWing(root, 'near');
     return { root, far, near, tail, legs, head, neck, lid };
@@ -258,12 +266,19 @@
     const drips = el('g', null, wax);
     el('path', { d: 'M-8 12q-2 9 1 13q4 -2 3 -13z', fill: '#8e3a2b' }, drips);
     el('path', { d: 'M7 13q1 6 4 8q2 -3 -1 -9z', fill: '#8e3a2b' }, drips);
-    const blob = el('path', { d: blobD(17, 13, rnd), fill: 'url(#sc-wax)' }, wax);
+    const blob = el('path', { d: FELT ? blobD(16, 24, () => 0.5) : blobD(17, 13, rnd), fill: 'url(#sc-wax)', class: 'sc-blob' }, wax);
     const emboss = el('g', { opacity: 0 }, wax);
-    el('circle', { r: 11.5, fill: 'none', stroke: 'rgba(70,15,8,.45)', 'stroke-width': 1.6 }, emboss);
-    el('circle', { r: 11.5, cy: 0.9, fill: 'none', stroke: 'rgba(255,190,170,.35)', 'stroke-width': 0.8 }, emboss);
-    el('text', { y: 6.2, 'text-anchor': 'middle', class: 'sc-mono sc-mono--hi' }, emboss).textContent = 'S';
-    el('text', { y: 5.4, 'text-anchor': 'middle', class: 'sc-mono' }, emboss).textContent = 'S';
+    if (FELT) {
+      drips.style.display = 'none';
+      el('circle', { r: 12, class: 'sc-btn-ring' }, emboss);
+      for (const [hx, hy] of [[-4, -4], [4, -4], [-4, 4], [4, 4]]) el('circle', { cx: hx, cy: hy, r: 1.7, fill: 'rgba(60,14,6,.6)' }, emboss);
+      el('path', { d: 'M-4 -4L4 4M4 -4L-4 4', class: 'sc-btn-x' }, emboss);
+    } else {
+      el('circle', { r: 11.5, fill: 'none', stroke: 'rgba(70,15,8,.45)', 'stroke-width': 1.6 }, emboss);
+      el('circle', { r: 11.5, cy: 0.9, fill: 'none', stroke: 'rgba(255,190,170,.35)', 'stroke-width': 0.8 }, emboss);
+      el('text', { y: 6.2, 'text-anchor': 'middle', class: 'sc-mono sc-mono--hi' }, emboss).textContent = 'S';
+      el('text', { y: 5.4, 'text-anchor': 'middle', class: 'sc-mono' }, emboss).textContent = 'S';
+    }
     return { g, lip, farEnd, body, clipRect, skin, shine, end, twine, wraps, tails, wax, drips, blob, emboss };
   }
 
@@ -325,9 +340,22 @@
         <stop offset="0" stop-color="#4a2d17"/><stop offset=".4" stop-color="#9a6a3e"/><stop offset="1" stop-color="#3f2613"/>
       </linearGradient>
       <filter id="pg-shadow" x="-60%" y="-60%" width="220%" height="220%">
-        <feDropShadow dx="20" dy="30" stdDeviation="7" flood-color="#1b1008" flood-opacity=".3"/>
+        __GRAIN__
+        <feDropShadow __IN__ dx="20" dy="30" stdDeviation="7" flood-color="#1b1008" flood-opacity=".3"/>
       </filter>
     </defs>`;
+
+  let grainUrl = null;
+  function stageDefs() {
+    if (!FELT) return DEFS.replace('__GRAIN__', '').replace('__IN__', '');
+    if (!grainUrl) grainUrl = window.HavenFelt.grain(160, 13, 1.5).toDataURL('image/png');
+    return DEFS.replace('__GRAIN__', `
+        <feImage href="${grainUrl}" x="0" y="0" width="160" height="160" result="g"/>
+        <feTile in="g" result="gt"/>
+        <feComposite in="gt" in2="SourceAlpha" operator="in" result="gi"/>
+        <feMerge result="felted"><feMergeNode in="SourceGraphic"/><feMergeNode in="gi"/></feMerge>`)
+      .replace('__IN__', 'in="felted"');
+  }
 
   const SPARK_D = 'M0 -7L1.3 -1.3L7 0L1.3 1.3L0 7L-1.3 1.3L-7 0L-1.3 -1.3Z';
   const DOWN_D = featherD(24, 10);
@@ -339,8 +367,8 @@
 
     // ---- stage + engine ----
     const stage = document.createElement('div');
-    stage.className = 'post-stage';
-    stage.innerHTML = `<svg viewBox="0 0 ${vw} ${vh}" width="${vw}" height="${vh}" aria-hidden="true">${DEFS}<g class="post-shadowed" filter="url(#pg-shadow)"></g><g class="post-fx"></g></svg>
+    stage.className = FELT ? 'post-stage is-felt' : 'post-stage';
+    stage.innerHTML = `<svg viewBox="0 0 ${vw} ${vh}" width="${vw}" height="${vh}" aria-hidden="true">${stageDefs()}<g class="post-shadowed" filter="url(#pg-shadow)"></g><g class="post-fx"></g></svg>
       <p class="post-skip">tap to skip</p>`;
     document.body.appendChild(stage);
     const svg = stage.querySelector('svg');
@@ -369,7 +397,7 @@
     };
     const scroll = buildScroll(layer);
     scroll.g.style.display = 'none';
-    const stamp = buildStamp(fx);
+    const stamp = buildStamp(FELT ? layer : fx);
     const pig = buildPigeon(layer);
     pig.root.style.display = 'none';
 

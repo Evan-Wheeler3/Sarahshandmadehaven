@@ -15,6 +15,52 @@
   let vines = [];
   let lastW = 0;
 
+  // Felt is the default look; ?tower=sandstone or ?tower=grey keep the painted ivy.
+  const asked = new URLSearchParams(location.search).get('tower');
+  const FELT = !!window.HavenFelt && asked !== 'sandstone' && asked !== 'grey';
+
+  // Felt leaves and flowers are drawn once into images, one per colour, and
+  // reused for every leaf, so growing ivy costs no more than before.
+  function feltSymbols() {
+    const F = window.HavenFelt, R = F.mulberry32;
+    const K = 5;  // pixels per unit in the images
+    const img = (box, draw) => {
+      const [x0, y0, w, h] = box;
+      const c = document.createElement('canvas');
+      c.width = Math.ceil(w * K); c.height = Math.ceil(h * K);
+      const x = c.getContext('2d');
+      x.setTransform(K, 0, 0, K, -x0 * K, -y0 * K);
+      draw(x);
+      return `<image href="${c.toDataURL('image/png')}" x="${x0}" y="${y0}" width="${w}" height="${h}"/>`;
+    };
+    const leafPts = F.samplePath(leafD(), 0.6);
+    let out = '';
+    GREENS.forEach((g, i) => {
+      out += `<symbol id="ivy-leaf-${i}" overflow="visible">` + img([-14, -28, 28, 32], (x) => {
+        F.thread(x, [[0, 1], [0, -6]], '#4a5a24', { width: 1.6, dash: [], rnd: R(i), shadow: 0.3 });
+        F.piece(x, leafPts, g, { rnd: R(10 + i), scale: 0.32, shadowAlpha: 0.35 });
+        for (const seg of [[[0, -6], [0, -21]], [[0, -10], [-5.5, -15]], [[0, -10], [5.5, -15]]]) {
+          F.thread(x, seg, '#e3f0c0', { width: 0.75, dash: [], rnd: R(20 + i), shadow: 0.25 });
+        }
+      }) + '</symbol>';
+    });
+    PETALS.forEach((col, i) => {
+      out += `<symbol id="ivy-flower-${i}" overflow="visible">` + img([-12, -12, 24, 24], (x) => {
+        const r = R(30 + i);
+        for (let j = 0; j < 5; j++) {
+          const a = (j / 5) * Math.PI * 2 - Math.PI / 2;
+          F.piece(x, F.ellipsePts(Math.cos(a) * 4.6, Math.sin(a) * 4.6, 3.5, 4.7, 20, a + Math.PI / 2), col,
+            { rnd: r, scale: 0.28, shadowAlpha: 0.3, puff: 0.6 });
+        }
+        F.piece(x, F.ellipsePts(0, 0, 2.5, 2.5, 16), '#f0b43c', { rnd: r, scale: 0.22, shadowAlpha: 0.3 });
+        x.fillStyle = '#9a5d14';
+        for (let j = 0; j < 6; j++) { x.beginPath(); x.arc(Math.cos(j * 1.05) * 1.1, Math.sin(j * 1.05) * 1.1, 0.42, 0, Math.PI * 2); x.fill(); }
+      }) + '</symbol>';
+    });
+    return out;
+  }
+  let FELT_DEFS = null;
+
   const LEAF = `
     <symbol id="ivy-leaf" overflow="visible">
       <path d="M0 0 L0 -5" stroke="#4a3d22" stroke-width="1.1" stroke-linecap="round"/>
@@ -96,12 +142,20 @@
       if (y < -60 || y > vh + 60) break;
     }
 
-    const path = el('path', { d: smoothPath(pts), class: depth ? 'vine vine--twig' : 'vine' }, gVines);
+    const d = smoothPath(pts);
+    const path = el('path', { d, class: depth ? 'vine vine--twig' : 'vine' }, gVines);
     const L = path.getTotalLength();
     path.style.strokeDasharray = `${L} ${L}`;
     path.style.strokeDashoffset = L;
+    // felt: a lighter strand twisted along the vine, like a felted cord
+    let hi = null;
+    if (FELT) {
+      hi = el('path', { d, class: 'vine-hi', transform: 'translate(-.7 -.9)' }, gVines);
+      hi.style.strokeDasharray = `${L} ${L}`;
+      hi.style.strokeDashoffset = L;
+    }
 
-    const vine = { path, L, s0: spec.s0, s1: spec.s1, leaves: [], flowers: [], f: -1 };
+    const vine = { path, hi, L, s0: spec.s0, s1: spec.s1, leaves: [], flowers: [], f: -1 };
 
     // leaves along the vine, alternating sides
     let acc = 0, next = 6 + rnd() * 10, side = rnd() < 0.5 ? 1 : -1;
@@ -119,7 +173,8 @@
         transform: `translate(${pts[i][0].toFixed(1)} ${pts[i][1].toFixed(1)}) rotate(${((phi * 180) / Math.PI + 90).toFixed(1)}) scale(${sc.toFixed(2)})`
       }, gLeaves);
       const inner = el('g', { class: 'leaf__in' }, g);
-      el('use', { href: '#ivy-leaf', color: GREENS[Math.floor(rnd() * GREENS.length)] }, inner);
+      const gi = Math.floor(rnd() * GREENS.length);
+      el('use', FELT ? { href: `#ivy-leaf-${gi}` } : { href: '#ivy-leaf', color: GREENS[gi] }, inner);
       vine.leaves.push({ g, at: acc, on: false });
 
       // every few leaves, a little blossom tucked against the vine
@@ -140,7 +195,8 @@
             transform: `translate(${fx.toFixed(1)} ${fy.toFixed(1)}) rotate(${(rnd() * 72).toFixed(0)}) scale(${fs.toFixed(2)})`
           }, gFlowers);
           const fin = el('g', { class: 'flower__in' }, fg);
-          el('use', { href: '#ivy-flower', color: PETALS[Math.floor(rnd() * PETALS.length)] }, fin);
+          const pi = Math.floor(rnd() * PETALS.length);
+          el('use', FELT ? { href: `#ivy-flower-${pi}` } : { href: '#ivy-flower', color: PETALS[pi] }, fin);
           // bloom a beat after the leaves around it
           vine.flowers.push({ g: fg, at: acc + 30, on: false });
         }
@@ -170,7 +226,9 @@
     lastW = vw;
     vines = [];
     svg.setAttribute('viewBox', `0 0 ${vw} ${vh}`);
-    svg.innerHTML = `<defs>${LEAF}${FLOWER}</defs>`;
+    if (FELT && !FELT_DEFS) FELT_DEFS = feltSymbols();
+    svg.classList.toggle('is-felt', FELT);
+    svg.innerHTML = `<defs>${FELT ? FELT_DEFS : LEAF + FLOWER}</defs>`;
     const gVines = el('g', { class: 'vines' }, svg);
     const gLeaves = el('g', { class: 'leaves' }, svg);
     const gFlowers = el('g', { class: 'flowers' }, svg);
@@ -215,6 +273,7 @@
       if (f === v.f) continue;
       v.f = f;
       v.path.style.strokeDashoffset = v.L * (1 - f);
+      if (v.hi) v.hi.style.strokeDashoffset = v.L * (1 - f);
       for (const list of [v.leaves, v.flowers]) {
         for (const l of list) {
           const on = f >= l.at;

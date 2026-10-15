@@ -13,7 +13,7 @@ npx http-server .
 - **Hero:** a stone tower drawn on a `<canvas>` (`js/scene.js`). The title letters fly out of the tower window when the page loads (`js/main.js`).
 - **Zoom:** scrolling dives into the tower. Its stones come from the same seamless texture tile as the wall behind the content (`js/stone.js`), so the tower turns into the wall without any cut.
 - **Ivy:** an SVG layer (`js/ivy.js`) that grows across the wall as you scroll down, with little flowers that bloom as it grows.
-- **Stone style:** sandstone with twinkling glints is the default. Add `?tower=grey` to the address to see the original grey stone (the original version of the whole site is also saved on the `tower-grey` branch). The style is chosen at the top of `js/scene.js`.
+- **Felt style:** the whole site is drawn as felt and stitching (`js/felt.js` holds the felt painting helpers). Felt pieces are drawn once when the page loads and then reused, so animations stay smooth. Add `?tower=sandstone` or `?tower=grey` to the address to see the earlier painted-stone looks (the very first version is also saved on the `tower-grey` branch).
 - **Order letter:** `js/letter.js`, with the send animation in `js/post.js`. Customers fill in a handwritten-style letter; on sending it rolls into a scroll, is tied and wax-sealed, and a jointed SVG carrier pigeon lands, grabs it and flies off (tap to skip). The site has no server, so the letter is then sent by Instagram DM (copied for pasting) or email (opens their mail app, already addressed).
 - If the visitor's device asks for reduced motion, the zoom becomes a simple crossfade and the letters appear without flying in.
 

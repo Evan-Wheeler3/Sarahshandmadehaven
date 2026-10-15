@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=IM+Fell+English:ital@0;1&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/styles.css?v=20261015-170045">
+  <link rel="stylesheet" href="css/styles.css?v=20261015-210739">
   <script>
     document.documentElement.classList.add('js');
     // Always open at the top (the tower): no restored scroll position, and no
@@ -23,6 +23,36 @@
   </script>
 </head>
 <body>
+  <!-- felt filters for the title lettering and the felt buttons (static, so drawn once) -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+    <defs>
+      <filter id="felt-ui" x="-10%" y="-15%" width="125%" height="135%" color-interpolation-filters="sRGB">
+        <feTurbulence type="fractalNoise" baseFrequency="0.09" numOctaves="2" seed="3" result="nEdge"/>
+        <feDisplacementMap in="SourceGraphic" in2="nEdge" scale="3" xChannelSelector="R" yChannelSelector="G" result="cut"/>
+        <feTurbulence type="fractalNoise" baseFrequency="1.8" numOctaves="1" seed="12" result="nFib"/>
+        <feDisplacementMap in="cut" in2="nFib" scale="6" xChannelSelector="R" yChannelSelector="B" result="fib"/>
+        <feComponentTransfer in="fib" result="fibSoft"><feFuncA type="linear" slope=".7"/></feComponentTransfer>
+        <feTurbulence type="fractalNoise" baseFrequency="1.25" numOctaves="3" seed="8" result="nSurf"/>
+        <feDiffuseLighting in="nSurf" surfaceScale="1.6" lighting-color="#fff" result="bump"><feDistantLight azimuth="235" elevation="55"/></feDiffuseLighting>
+        <feComponentTransfer in="bump" result="bumpSoft"><feFuncR type="linear" slope=".45" intercept=".64"/><feFuncG type="linear" slope=".45" intercept=".64"/><feFuncB type="linear" slope=".45" intercept=".64"/></feComponentTransfer>
+        <feBlend in="cut" in2="bumpSoft" mode="multiply" result="tex0"/>
+        <feComposite in="tex0" in2="cut" operator="in" result="tex"/>
+        <feGaussianBlur in="SourceAlpha" stdDeviation="2.5" result="ab"/>
+        <feOffset in="ab" dx="-2" dy="-2.5" result="abDark"/>
+        <feComposite in="SourceAlpha" in2="abDark" operator="out" result="rimD"/>
+        <feFlood flood-color="#2a1708" flood-opacity=".45"/><feComposite in2="rimD" operator="in" result="rimDark"/>
+        <feOffset in="ab" dx="2" dy="2.5" result="abLight"/>
+        <feComposite in="SourceAlpha" in2="abLight" operator="out" result="rimL"/>
+        <feFlood flood-color="#fff6e2" flood-opacity=".3"/><feComposite in2="rimL" operator="in" result="rimLight"/>
+        <feMerge result="pf"><feMergeNode in="tex"/><feMergeNode in="rimDark"/><feMergeNode in="rimLight"/></feMerge>
+        <feComposite in="pf" in2="cut" operator="in" result="puffed"/>
+        <feGaussianBlur in="SourceAlpha" stdDeviation="2.5" result="sb"/>
+        <feOffset in="sb" dx="2" dy="3.5" result="so"/>
+        <feFlood flood-color="#1f1206" flood-opacity=".35"/><feComposite in2="so" operator="in" result="shadow"/>
+        <feMerge><feMergeNode in="shadow"/><feMergeNode in="fibSoft"/><feMergeNode in="puffed"/></feMerge>
+      </filter>
+    </defs>
+  </svg>
   <!-- The scene is pinned with position: sticky rather than fixed, so iOS
        Safari also paints it behind its floating toolbar. -->
   <div class="backdrop" aria-hidden="true">
@@ -199,12 +229,13 @@
     <p>Made by hand, with love · © <span data-year>2026</span></p>
   </footer>
 
-  <script src="js/config.js?v=20261015-170045" defer></script>
-  <script src="js/stone.js?v=20261015-170045" defer></script>
-  <script src="js/scene.js?v=20261015-170045" defer></script>
-  <script src="js/ivy.js?v=20261015-170045" defer></script>
-  <script src="js/main.js?v=20261015-170045" defer></script>
-  <script src="js/post.js?v=20261015-170045" defer></script>
-  <script src="js/letter.js?v=20261015-170045" defer></script>
+  <script src="js/config.js?v=20261015-210739" defer></script>
+  <script src="js/felt.js?v=20261015-210739" defer></script>
+  <script src="js/stone.js?v=20261015-210739" defer></script>
+  <script src="js/scene.js?v=20261015-210739" defer></script>
+  <script src="js/ivy.js?v=20261015-210739" defer></script>
+  <script src="js/main.js?v=20261015-210739" defer></script>
+  <script src="js/post.js?v=20261015-210739" defer></script>
+  <script src="js/letter.js?v=20261015-210739" defer></script>
 </body>
 </html>

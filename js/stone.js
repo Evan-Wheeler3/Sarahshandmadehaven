@@ -240,7 +240,60 @@
   // A tile `size` wide and `height` tall (CSS px), with stone courses about
   // `rowH` tall. A tall tile means the
   // tower, which is a narrow vertical strip of it, barely repeats.
+  // Felt: hand-cut felt stones in sandstone shades, sewn onto a dark felt
+  // backing with a running stitch.
+  const FELT_STONES = ['#e3bf87', '#d9ab6c', '#ecd3a2', '#d39a6a', '#c98f62', '#e8c48f', '#dcb57b', '#f0dcb4', '#cfa476'];
+  function makeFeltTile(size, height, dpr, seed, rowH) {
+    const F = window.HavenFelt;
+    const rnd = mulberry32(seed || 1871);
+    const c = document.createElement('canvas');
+    c.width = Math.round(size * dpr);
+    c.height = Math.round(height * dpr);
+    const ctx = c.getContext('2d');
+    ctx.scale(c.width / size, c.height / height);
+
+    // the backing felt, which shows between the stones like mortar
+    ctx.fillStyle = '#4e3522';
+    ctx.fillRect(0, 0, size, height);
+    for (let i = 0; i < 40; i++) {
+      const x = rnd() * size, y = rnd() * height, r = 60 + rnd() * 160;
+      const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+      g.addColorStop(0, rnd() < 0.5 ? 'rgba(255,240,220,.06)' : 'rgba(20,10,2,.1)');
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+    F.grainOver(ctx, 0, 0, size, height, 1.4, 1, 3);
+
+    const k = (rowH || size / 10) / 60;   // scale of fuzz, puff and stitches to the stone size
+    const stones = buildStones(size, height, rowH || size / 10, rnd, STYLES.sandstone);
+    for (const st of stones) {
+      const s = st.shape;
+      const sd = Math.floor(rnd() * 1e9);
+      const pts = F.cutQuad(s.x + 1.5, s.y + 1.5, s.w - 3, s.h - 3, mulberry32(sd), 0.16, 0.34);
+      const color = FELT_STONES[Math.floor(rnd() * FELT_STONES.length)];
+      const thread = rnd() < 0.62 ? '#fff3d6' : '#6e4322';
+      for (const ox of [-size, 0, size]) {
+        if (s.x + ox > size + 10 || s.x + s.w + ox < -10) continue;
+        for (const oy of [-height, 0, height]) {
+          if (s.y + oy > height + 10 || s.y + s.h + oy < -10) continue;
+          ctx.save();
+          ctx.translate(ox, oy);
+          F.piece(ctx, pts, color, {
+            rnd: mulberry32(sd), scale: k * 1.25, stitch: thread,
+            stitchWidth: 2.3 * k, stitchInset: 7.5 * k, stitchDash: [7 * k, 5 * k]
+          });
+          ctx.restore();
+        }
+      }
+    }
+    c.rows = stones.rows;
+    c.sparkles = [];
+    return c;
+  }
+
   function makeTile(size, height, dpr, seed, styleName, rowH) {
+    if (styleName === 'felt' && window.HavenFelt) return makeFeltTile(size, height, dpr, seed, rowH);
     const style = STYLES[styleName] || STYLES.sandstone;
     const rnd = mulberry32(seed || 1871);
     const c = document.createElement('canvas');

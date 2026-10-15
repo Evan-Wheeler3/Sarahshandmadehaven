@@ -11,22 +11,26 @@
   const ctx = canvas.getContext('2d');
   const glintCanvas = document.getElementById('glint');
   const gctx = glintCanvas ? glintCanvas.getContext('2d') : null;
-  // ?tower=grey shows the original grey stone; sandstone is the default
-  const STYLE = new URLSearchParams(location.search).get('tower') === 'grey' ? 'grey' : 'sandstone';
+  // Felt and stitching is the default. ?tower=sandstone or ?tower=grey show
+  // the earlier painted-stone looks.
+  const asked = new URLSearchParams(location.search).get('tower');
+  const STYLE = asked === 'grey' || asked === 'sandstone' || !window.HavenFelt ? (asked === 'grey' ? 'grey' : 'sandstone') : 'felt';
   const LOOK = {
     grey: { vignette: 0.62, wash: 0.1, calm: 0.12, ground: '#556a3b', wall: '#3d362f', sky: '#bfd0cf', glints: false },
-    sandstone: { vignette: 0.5, wash: 0.16, calm: 0.2, ground: '#556a3b', wall: '#6b5238', sky: '#bfd0cf', glints: true }
+    sandstone: { vignette: 0.5, wash: 0.16, calm: 0.2, ground: '#556a3b', wall: '#6b5238', sky: '#bfd0cf', glints: true },
+    felt: { vignette: 0.42, wash: 0.1, calm: 0.14, ground: '#5f7a3c', wall: '#4e3522', sky: '#d6ded7', glints: false, felt: true }
   }[STYLE];
   const themeMeta = document.querySelector('meta[name="theme-color"]');
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const root = document.documentElement;
+  root.classList.toggle('is-felt', !!LOOK.felt);
 
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
   const lerp = (a, b, t) => a + (b - a) * t;
   const smooth = (t) => t * t * (3 - 2 * t);
   const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
-  const TOWER_STONE = 2.2;   // tower stones are this much bigger than the wall's
+  const TOWER_STONE = LOOK.felt ? 5 : 2.2;   // tower stones are this much bigger than the wall's
   const FADE = [0.55, 0.75];  // stretch of the zoom where tower stones dissolve into the wall's
 
   const S = {
@@ -78,6 +82,254 @@
     S.L = { narrow, tw, cx, groundY, topY, winW, winTop, winH, winBottom, slitY, F, baseY, Z, tufts, clouds };
     S.L.edge = makeEdge(S.L, rnd);
     S.tint = makeTint();
+    if (LOOK.felt) S.felt = buildFelt(S.L);
+  }
+
+  /* ---------- felt pieces, drawn once per layout ---------- */
+
+  // A sprite covers a world-space box at `res` device pixels per unit.
+  function sprite(x0, y0, w, h, res, draw) {
+    res = Math.min(res, 4096 / w, 4096 / h);
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.ceil(w * res));
+    c.height = Math.max(1, Math.ceil(h * res));
+    const x = c.getContext('2d');
+    x.setTransform(res, 0, 0, res, -x0 * res, -y0 * res);
+    draw(x);
+    return { c, x0, y0, w: c.width / res, h: c.height / res };
+  }
+  function blit(sp) { if (sp) ctx.drawImage(sp.c, sp.x0, sp.y0, sp.w, sp.h); }
+
+  function hillPts(baseY, amp, f1, f2, phase, x0, x1, bottom) {
+    const pts = [[x0, bottom]];
+    for (let x = x0; x <= x1; x += 10) pts.push([x, baseY + Math.sin(x * f1 + phase) * amp + Math.sin(x * f2 + phase * 2.3) * amp * 0.5]);
+    pts.push([x1, bottom]);
+    return pts;
+  }
+  const groundCrest = (L, x) => L.groundY - L.tw * 0.15 * Math.exp(-Math.pow((x - L.cx) / (L.tw * 2.5), 2)) + Math.sin(x * 0.009 + 2) * S.vh * 0.012;
+
+  function parapetPts(L) {
+    const tw = L.tw, cx = L.cx, top = L.topY;
+    const pw = tw * 0.62, hwT = tw * 0.47, pTop = top - tw * 0.32, mh = tw * 0.3;
+    const n = 4, a = (2 * pw) / (n + (n - 1) * 0.75), gap = a * 0.75;
+    const pts = [[cx - hwT, top + tw * 0.32], [cx - pw, top + tw * 0.08], [cx - pw, pTop - mh]];
+    let x = cx - pw;
+    for (let i = 0; i < n; i++) {
+      x += a;
+      pts.push([x, pTop - mh]);
+      if (i < n - 1) { pts.push([x, pTop], [x + gap, pTop], [x + gap, pTop - mh]); x += gap; }
+    }
+    pts.push([cx + pw, top + tw * 0.08], [cx + hwT, top + tw * 0.32]);
+    return { pts, pw, pTop, mh, a, gap, n };
+  }
+
+  function archPts(cx, top, w, bottom, n = 16) {
+    const r = w / 2, pts = [[cx - r, bottom], [cx - r, top + r]];
+    for (let i = 1; i < n; i++) { const a = Math.PI + (Math.PI * i) / n; pts.push([cx + Math.cos(a) * r, top + r + Math.sin(a) * r]); }
+    pts.push([cx + r, top + r], [cx + r, bottom]);
+    return pts;
+  }
+
+  const LEAF_D = 'M0 -5 C-3 -3.5 -8 -3.6 -9.6 -6.8 C-10.6 -9 -8.6 -11 -6.4 -10.8 C-9.6 -12.8 -10.4 -17.4 -6.4 -17.6 C-4 -17.8 -2 -20.4 0 -24 C2 -20.4 4 -17.8 6.4 -17.6 C10.4 -17.4 9.6 -12.8 6.4 -10.8 C8.6 -11 10.6 -9 9.6 -6.8 C8 -3.6 3 -3.5 0 -5Z';
+  function feltLeaf(x, F, px, py, rot, sc, color, rnd) {
+    const base = F.samplePath(LEAF_D, 1.2);
+    const pts = base.map(([a, b]) => {
+      const X = a * sc, Y = b * sc;
+      return [px + X * Math.cos(rot) - Y * Math.sin(rot), py + X * Math.sin(rot) + Y * Math.cos(rot)];
+    });
+    F.piece(x, pts, color, { rnd, scale: sc * 0.35, shadowAlpha: 0.35 });
+    const vein = [[0, -5], [0, -21]].map(([a, b]) => [px + a * sc * Math.cos(rot) - b * sc * Math.sin(rot), py + a * sc * Math.sin(rot) + b * sc * Math.cos(rot)]);
+    F.thread(x, vein, '#e3f0c0', { width: 0.9 * sc * 0.6, dash: [], rnd, shadow: 0.25 });
+  }
+  function feltFlower(x, F, px, py, sc, color, rnd) {
+    for (let i = 0; i < 5; i++) {
+      const a = (i / 5) * Math.PI * 2 - Math.PI / 2;
+      F.piece(x, F.ellipsePts(px + Math.cos(a) * 4.4 * sc, py + Math.sin(a) * 4.4 * sc, 3.4 * sc, 4.6 * sc, 18, a + Math.PI / 2), color,
+        { rnd, scale: sc * 0.3, shadowAlpha: 0.3, puff: 0.6 });
+    }
+    F.piece(x, F.ellipsePts(px, py, 2.4 * sc, 2.4 * sc, 14), '#f0b43c', { rnd, scale: sc * 0.25, shadowAlpha: 0.3 });
+    x.fillStyle = '#9a5d14';
+    for (let i = 0; i < 5; i++) { x.beginPath(); x.arc(px + Math.cos(i * 1.26) * sc, py + Math.sin(i * 1.26) * sc, 0.5 * sc, 0, Math.PI * 2); x.fill(); }
+  }
+
+  function buildFelt(L) {
+    const F = window.HavenFelt, { vw, vh, dpr } = S, tw = L.tw;
+    const R = window.HavenStone.mulberry32;
+    const out = {};
+    const k = clamp(tw / 128, 0.45, 1);   // felt detail scale for the tower pieces
+
+    // sky: a pale blue felt sheet with a cream band of distant fields
+    out.sky = sprite(0, 0, vw, vh, Math.min(dpr, 1.5), (x) => {
+      x.fillStyle = '#d6ded7';
+      x.fillRect(0, 0, vw, vh);
+      F.grainOver(x, 0, 0, vw, vh, 1.2, 1, 11);
+      const band = [[-20, vh + 20], [-20, vh * 0.3]];
+      for (let px = -20; px <= vw + 20; px += 12) band.push([px, vh * 0.3 + Math.sin(px * 0.004 + 1) * vh * 0.03 + Math.sin(px * 0.011) * vh * 0.012]);
+      band.push([vw + 20, vh + 20]);
+      F.piece(x, band, '#efe2c6', { rnd: R(3), scale: 1.2, puff: 0.6, heather: 1.4 });
+    });
+
+    // the sun, stitched round with blanket stitch
+    const sr = Math.min(vw, vh) * 0.075, sx = vw * 0.5, sy = vh * 0.17;
+    out.sun = sprite(sx - sr - 12, sy - sr - 12, sr * 2 + 30, sr * 2 + 30, dpr, (x) => {
+      const pts = F.ellipsePts(sx, sy, sr, sr, 64);
+      F.piece(x, pts, '#f8e7b5', { rnd: R(5), scale: 1, puff: 0.8 });
+      F.blanket(x, pts, '#d8a743', { width: clamp(sr * 0.03, 1.4, 2.2), every: Math.max(9, sr * 0.26), depth: Math.max(4, sr * 0.13), rnd: R(6) });
+    });
+
+    // clouds
+    const CLOUD = 'M0 40 C-6 14 26 4 40 18 C48 -6 92 -8 100 16 C116 2 150 10 146 38 C160 44 156 64 138 64 H6 C-12 64 -14 46 0 40Z';
+    const cloudPts = F.samplePath(CLOUD, 2);
+    out.clouds = L.clouds.slice(0, 4).map((cl, i) => {
+      const s2 = (vw < 700 ? 0.6 : 1) * (0.7 + (i % 3) * 0.25);
+      return Object.assign({}, cl, {
+        sp: sprite(-14, -14, 175 * s2 + 20, 80 * s2 + 20, dpr, (x) => {
+          x.save(); x.scale(s2, s2);
+          F.piece(x, cloudPts, '#fbf8f1', { rnd: R(20 + i), scale: 1 / s2 * 0.9, puff: 1, stitch: '#b9c6cc', stitchWidth: 2.2 / s2, stitchInset: 8, stitchDash: [7, 6] });
+          x.restore();
+        })
+      });
+    });
+
+    // two layers of distant hills
+    const hillRes = Math.min(dpr, 1.5);
+    out.far = sprite(-vw * 0.6, vh * 0.6, vw * 2.2, vh * 0.7, hillRes, (x) => {
+      const pts = hillPts(vh * 0.74, vh * 0.03, 0.004, 0.011, 1.2, -vw * 0.6, vw * 1.6, vh * 1.3);
+      F.piece(x, pts, '#a9b89c', { rnd: R(30), scale: 1.2, puff: 0.7 });
+      F.thread(x, F.inset(pts, 10).slice(1, -1), '#e8eccf', { width: 2.6, dash: [11, 8], rnd: R(31) });
+    });
+    out.mid = sprite(-vw * 0.6, vh * 0.7, vw * 2.2, vh * 0.65, hillRes, (x) => {
+      const pts = hillPts(vh * 0.82, vh * 0.025, 0.006, 0.017, 4.1, -vw * 0.6, vw * 1.6, vh * 1.35);
+      F.piece(x, pts, '#93a96f', { rnd: R(32), scale: 1.2, puff: 0.7 });
+      F.thread(x, F.inset(pts, 10).slice(1, -1), '#dfe6b8', { width: 2.6, dash: [11, 8], rnd: R(33) });
+    });
+
+    // the ground the tower stands on: green felt, blanket-stitched edge, thread grass, felt flowers
+    const gx0 = -vw * 0.6, gx1 = vw * 1.6, gTop = L.groundY - tw * 0.3 - 30, gBot = L.groundY + vh * 0.3;
+    out.groundBottom = gBot;
+    out.ground = sprite(gx0, gTop, gx1 - gx0, gBot - gTop, Math.min(dpr * 1.5, 3), (x) => {
+      const pts = [[gx0, gBot + 40]];
+      for (let px = gx0; px <= gx1; px += 8) pts.push([px, groundCrest(L, px)]);
+      pts.push([gx1, gBot + 40]);
+      F.piece(x, pts, '#6f8a48', { rnd: R(40), scale: 1, puff: 0.8 });
+      F.blanket(x, pts.slice(1, -1).concat([[gx1, gBot + 40], [gx0, gBot + 40]]), '#c7d68c', { width: 2.2, every: 24, depth: 10, rnd: R(41) });
+      const r = R(42);
+      for (let px = gx0 + 10; px < gx1; px += 14 + r() * 20) {
+        const py = groundCrest(L, px) + 4;
+        F.thread(x, [[px, py], [px - 3, py - 11]], '#3f5a24', { width: 2, dash: [], rnd: r, shadow: 0.3 });
+        F.thread(x, [[px + 4, py], [px + 7, py - 13]], '#3f5a24', { width: 2, dash: [], rnd: r, shadow: 0.3 });
+        if (r() < 0.06) feltFlower(x, F, px + 2, py - 14, 0.8, ['#f3b9c0', '#fbf5ea', '#f8d66a'][Math.floor(r() * 3)], r);
+      }
+    });
+
+    // battlements and the overhanging parapet, built from felt stones
+    const pp = parapetPts(L);
+    const pBox = [L.cx - pp.pw - 14, pp.pTop - pp.mh - 14, pp.pw * 2 + 28, tw * 0.75 + pp.mh + 30];
+    out.parapet = sprite(pBox[0], pBox[1], pBox[2], pBox[3], dpr * 3, (x) => {
+      const r = R(50);
+      F.piece(x, pp.pts, '#5d4129', { rnd: r, scale: k, puff: 0.8 });
+      const cols = ['#e3bf87', '#d9ab6c', '#ecd3a2', '#d39a6a', '#e8c48f', '#dcb57b'];
+      const stone = (sx2, sy2, w, h) => F.piece(x, F.cutQuad(sx2, sy2, w, h, r, 0.14, 0.3), cols[Math.floor(r() * cols.length)],
+        { rnd: r, scale: k * 0.8, stitch: r() < 0.6 ? '#fff3d6' : '#6e4322', stitchWidth: 2 * k, stitchInset: 5.5 * k, stitchDash: [5 * k, 4 * k] });
+      for (let i = 0, bx = L.cx - pp.pw; i < pp.n; i++, bx += pp.a + pp.gap) stone(bx + 2 * k, pp.pTop - pp.mh + 2 * k, pp.a - 4 * k, pp.mh + 2 * k);
+      const rowY = pp.pTop + 4 * k, rowH = L.topY + tw * 0.06 - rowY;
+      let bx = L.cx - pp.pw + 2 * k;
+      while (bx < L.cx + pp.pw - 10 * k) {
+        const w = Math.min(L.cx + pp.pw - 2 * k - bx, (0.3 + r() * 0.2) * tw);
+        stone(bx, rowY, w - 3 * k, rowH);
+        bx += w;
+      }
+      const trim = [[L.cx - pp.pw, L.topY + tw * 0.08], [L.cx + pp.pw, L.topY + tw * 0.08], [L.cx + tw * 0.47, L.topY + tw * 0.32], [L.cx - tw * 0.47, L.topY + tw * 0.32]];
+      F.piece(x, trim, '#b98a5a', { rnd: r, scale: k, puff: 0.8 });
+      F.thread(x, [[L.cx - pp.pw + 10 * k, L.topY + tw * 0.15], [L.cx + pp.pw - 10 * k, L.topY + tw * 0.15]], '#fff1d6', { width: 2.2 * k, dash: [6 * k, 5 * k], rnd: r });
+      // round-tower light and shade, baked in
+      x.save();
+      x.globalCompositeOperation = 'source-atop';
+      const g = x.createLinearGradient(L.cx - pp.pw, 0, L.cx + pp.pw, 0);
+      g.addColorStop(0, 'rgba(42,23,8,.4)'); g.addColorStop(0.22, 'rgba(255,242,216,.1)');
+      g.addColorStop(0.45, 'rgba(42,23,8,0)'); g.addColorStop(1, 'rgba(42,23,8,.55)');
+      x.fillStyle = g;
+      x.fillRect(pBox[0], pBox[1], pBox[2], pBox[3]);
+      x.restore();
+    });
+
+    // the glowing window
+    const w = L.winW, wb = [L.cx - w - 10, L.winTop - w * 0.5, w * 2 + 20, L.winH + w + 10];
+    out.window = sprite(wb[0], wb[1], wb[2], wb[3], dpr * 3, (x) => {
+      const r = R(60);
+      const fr = archPts(L.cx, L.winTop - tw * 0.1, w + tw * 0.2, L.winBottom + tw * 0.03);
+      F.piece(x, fr, '#f2e4c4', { rnd: r, scale: k, puff: 1 });
+      F.thread(x, F.inset(fr, 5 * k).slice(0, -1), '#b48a52', { width: 2 * k, dash: [5 * k, 4 * k], rnd: r });
+      F.piece(x, archPts(L.cx, L.winTop, w, L.winBottom), '#2e1c10', { rnd: r, scale: k, puff: 0.6 });
+      const glow = archPts(L.cx, L.winTop + w * 0.35, w * 0.62, L.winBottom - w * 0.12);
+      F.piece(x, glow, '#f0a54a', { rnd: r, scale: k * 0.8, puff: 0.6 });
+      x.save();
+      x.beginPath(); F.polyPath(x, glow); x.clip();
+      const gg = x.createRadialGradient(L.cx, L.winBottom, 0, L.cx, L.winBottom, L.winH * 0.9);
+      gg.addColorStop(0, 'rgba(255,224,150,.85)'); gg.addColorStop(1, 'rgba(255,224,150,0)');
+      x.fillStyle = gg; x.fillRect(wb[0], wb[1], wb[2], wb[3]);
+      x.restore();
+      F.piece(x, F.cutQuad(L.cx - w * 0.8, L.winBottom, w * 1.6, tw * 0.09, r, 0.05, 0.4), '#e9d6ae', { rnd: r, scale: k * 0.7, puff: 0.8 });
+    });
+
+    // the arrow slit
+    out.slit = sprite(L.cx - tw * 0.12, L.slitY - 8, tw * 0.24, tw * 0.42 + 16, dpr * 3, (x) => {
+      F.piece(x, archPts(L.cx, L.slitY, tw * 0.09, L.slitY + tw * 0.42), '#2e1c10', { rnd: R(70), scale: k * 0.6, puff: 0.5 });
+    });
+
+    // the door: planks of brown felt stitched together, in a cream arch
+    const dw = tw * 0.4, dTop = L.groundY - tw * 0.72;
+    out.door = sprite(L.cx - dw, dTop - dw * 0.4, dw * 2, L.groundY - dTop + dw * 0.6, dpr * 3, (x) => {
+      const r = R(80);
+      F.piece(x, archPts(L.cx, dTop - tw * 0.08, dw + tw * 0.16, L.groundY + tw * 0.2), '#f2e4c4', { rnd: r, scale: k, puff: 1 });
+      F.piece(x, archPts(L.cx, dTop, dw, L.groundY + tw * 0.2), '#7a4b2a', { rnd: r, scale: k, puff: 0.8 });
+      for (let i = 1; i < 4; i++) {
+        const px = L.cx - dw / 2 + (dw * i) / 4;
+        F.thread(x, [[px, dTop + dw * 0.2], [px, L.groundY + 4]], '#e6c18f', { width: 2 * k, dash: [5 * k, 4 * k], rnd: r });
+      }
+      F.piece(x, F.ellipsePts(L.cx + dw * 0.28, dTop + dw * 0.95, 3.5 * k + 1, 3.5 * k + 1, 12), '#d9b46a', { rnd: r, scale: k * 0.4, puff: 0.6 });
+    });
+
+    // ivy climbing the foot of the tower
+    const ib = [L.cx - tw * 0.95, L.groundY - tw * 2.6, tw * 1.9, tw * 2.7];
+    out.ivy = sprite(ib[0], ib[1], ib[2], ib[3], dpr * 2, (x) => {
+      const r = R(90), sc = tw / 120 * 1.3;
+      const greens = ['#4f8a38', '#5f9a43', '#447a31', '#6aa64c'];
+      const vine = (pts) => {
+        x.save(); x.lineCap = 'round'; x.lineJoin = 'round';
+        x.strokeStyle = '#4c5a28'; x.lineWidth = 4 * sc;
+        x.beginPath(); x.moveTo(pts[0][0], pts[0][1]);
+        for (let i = 1; i < pts.length; i++) {
+          const a = pts[i - 1], b = pts[i];
+          x.quadraticCurveTo(a[0] + (b[0] - a[0]) * 0.2 + 8 * sc, (a[1] + b[1]) / 2, b[0], b[1]);
+        }
+        x.stroke(); x.restore();
+      };
+      const gy = L.groundY + 6;
+      const v1 = [[L.cx - tw * 0.52, gy], [L.cx - tw * 0.44, gy - tw * 0.55], [L.cx - tw * 0.3, gy - tw * 1.1], [L.cx - tw * 0.38, gy - tw * 1.6], [L.cx - tw * 0.22, gy - tw * 2.1]];
+      const v2 = [[L.cx + tw * 0.48, gy], [L.cx + tw * 0.38, gy - tw * 0.48], [L.cx + tw * 0.44, gy - tw * 0.95]];
+      vine(v1); vine(v2);
+      const leaves = [[-0.48, 0.32, -50], [-0.38, 0.72, 40], [-0.33, 1.15, -40], [-0.42, 1.45, 50], [-0.31, 1.82, -30], [-0.22, 2.12, 20],
+        [0.44, 0.24, 40], [0.35, 0.62, -40], [0.46, 0.92, 30]];
+      for (const [fx, fy, rot] of leaves) feltLeaf(x, F, L.cx + fx * tw, gy - fy * tw, (rot * Math.PI) / 180, sc * (1.25 + r() * 0.35), greens[Math.floor(r() * greens.length)], r);
+      feltFlower(x, F, L.cx - tw * 0.26, gy - tw * 0.9, sc * 1.2, '#f3b9c0', r);
+      feltFlower(x, F, L.cx - tw * 0.45, gy - tw * 1.75, sc * 1.05, '#fbf5ea', r);
+      feltFlower(x, F, L.cx + tw * 0.31, gy - tw * 0.4, sc * 1.1, '#c9b0ea', r);
+    });
+
+    // fringe: short loose fibres for the tower's fuzzy outline
+    const fr = document.createElement('canvas');
+    fr.width = fr.height = 48;
+    const fx = fr.getContext('2d'), rr = R(99);
+    fx.lineCap = 'round';
+    for (let i = 0; i < 260; i++) {
+      const a = rr() * Math.PI * 2, px = rr() * 48, py = rr() * 48, len = 1 + rr() * 3;
+      fx.strokeStyle = rr() < 0.5 ? 'rgba(88,62,40,.75)' : 'rgba(200,160,110,.55)';
+      fx.lineWidth = 0.7;
+      fx.beginPath(); fx.moveTo(px, py); fx.lineTo(px + Math.cos(a) * len, py + Math.sin(a) * len); fx.stroke();
+    }
+    out.fringe = ctx.createPattern(fr, 'repeat');
+    return out;
   }
 
   // The tower's outline follows its stone courses: each course pokes out a
@@ -128,7 +380,8 @@
     const w = wide ? Math.round(clamp(S.vw * 1.02, 720, 1600)) : 440;
     if (w === S.tileW && S.mips.length) return;
     S.tileW = w;
-    S.tileH = Math.round(w * (wide ? 2.4 : 4.5));
+    // felt stones are big on the tower, so a shorter tile still never repeats there
+    S.tileH = Math.round(w * (LOOK.felt ? (wide ? 1.45 : 3.2) : (wide ? 2.4 : 4.5)));
     S.tileDpr = wide ? Math.min(S.dpr, 1.5) : S.dpr;
     const rowH = wide ? clamp(S.vw * 0.055, 60, 84) : 50;
     const base = window.HavenStone.makeTile(S.tileW, S.tileH, S.tileDpr, 1871, STYLE, rowH);
@@ -201,6 +454,17 @@
   function drawSky(cam) {
     const { vw, vh, dpr, L } = S;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    if (LOOK.felt && S.felt) {
+      blit(S.felt.sky);
+      setCam(cam, 0.03);
+      blit(S.felt.sun);
+      for (const c of S.felt.clouds) {
+        const span = vw * 1.6;
+        const x = ((c.x + S.t * c.speed) % span) - vw * 0.3;
+        ctx.drawImage(c.sp.c, x + c.sp.x0, c.y + c.sp.y0, c.sp.w, c.sp.h);
+      }
+      return;
+    }
     const g = ctx.createLinearGradient(0, 0, 0, vh);
     g.addColorStop(0, '#bfd0cf');
     g.addColorStop(0.5, '#e6d9c0');
@@ -244,6 +508,11 @@
 
   function drawHills(cam) {
     const { vw, vh } = S;
+    if (LOOK.felt && S.felt) {
+      setCam(cam, 0.05); blit(S.felt.far);
+      setCam(cam, 0.14); blit(S.felt.mid);
+      return;
+    }
     setCam(cam, 0.05);
     hillPath(vh * 0.74, vh * 0.03, 0.004, 0.011, 1.2, -vw, vw * 2);
     ctx.fillStyle = 'rgba(146,166,150,.55)';
@@ -340,7 +609,88 @@
     return 0.86 + 0.08 * Math.sin(t * 7.3) * Math.sin(t * 2.1 + 1) + 0.04 * Math.sin(t * 23.7) + pulse;
   }
 
+  function drawFeltTower(cam, p) {
+    const L = S.L, tw = L.tw, FL = S.felt;
+    setCam(cam, 1);
+    const shade = 1 - smooth(clamp((p - 0.1) / 0.6, 0, 1));
+    const fade = reduceMotion ? 0 : smooth(clamp((p - FADE[0]) / (FADE[1] - FADE[0]), 0, 1));
+
+    ctx.fillStyle = stonePattern(cam.z, TOWER_STONE);
+    towerBody(); ctx.fill();
+    if (fade > 0.001) {
+      ctx.globalAlpha = fade;
+      ctx.fillStyle = stonePattern(cam.z, 1);
+      towerBody(); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    if (shade > 0.001) {
+      // light from the upper left on a round tower
+      const g = ctx.createLinearGradient(L.cx - tw * 0.54, 0, L.cx + tw * 0.54, 0);
+      g.addColorStop(0, `rgba(42,23,8,${0.42 * shade})`);
+      g.addColorStop(0.22, `rgba(255,242,216,${0.1 * shade})`);
+      g.addColorStop(0.45, 'rgba(42,23,8,0)');
+      g.addColorStop(1, `rgba(42,23,8,${0.58 * shade})`);
+      ctx.fillStyle = g;
+      towerBody(); ctx.fill();
+
+      // shadow under the parapet, haze toward the ground
+      ctx.save();
+      towerBody(); ctx.clip();
+      const sg = ctx.createLinearGradient(0, L.topY + tw * 0.25, 0, L.topY + tw * 0.8);
+      sg.addColorStop(0, `rgba(20,12,4,${0.55 * shade})`);
+      sg.addColorStop(1, 'rgba(20,12,4,0)');
+      ctx.fillStyle = sg;
+      ctx.fillRect(L.cx - tw, L.topY + tw * 0.25, tw * 2, tw * 0.55);
+      const hg = ctx.createLinearGradient(0, L.groundY - tw * 2, 0, L.groundY);
+      hg.addColorStop(0, 'rgba(50,40,24,0)');
+      hg.addColorStop(1, `rgba(50,40,24,${0.3 * shade})`);
+      ctx.fillStyle = hg;
+      ctx.fillRect(L.cx - tw, L.groundY - tw * 2, tw * 2, tw * 2.5);
+      ctx.restore();
+
+      // a fuzzy fibre outline, and a seam stitched down each side
+      ctx.save();
+      ctx.globalAlpha = shade;
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = FL.fringe;
+      ctx.lineWidth = Math.max(2, tw * 0.03);
+      towerBody(); ctx.stroke();
+      ctx.lineCap = 'round';
+      ctx.setLineDash([tw * 0.075, tw * 0.055]);
+      const seam = (side, color) => {
+        const y0 = L.topY + tw * 0.42, y1 = L.groundY - tw * 0.05;
+        const xAt = (y) => L.cx + side * (halfWidth(y) - tw * 0.07);
+        for (const [c, ox, oy] of [['rgba(20,10,2,.45)', tw * 0.008, tw * 0.011], [color, 0, 0]]) {
+          ctx.strokeStyle = c;
+          ctx.lineWidth = tw * 0.019;
+          ctx.beginPath(); ctx.moveTo(xAt(y0) + ox, y0 + oy); ctx.lineTo(xAt(y1) + ox, y1 + oy); ctx.stroke();
+        }
+      };
+      seam(-1, '#fff1d6');
+      seam(1, '#3b2614');
+      ctx.restore();
+    }
+
+    blit(FL.slit);
+    blit(FL.door);
+    blit(FL.parapet);
+    blit(FL.window);
+
+    // the window's warm glow, flickering
+    const f = flicker();
+    const gx = L.cx, gy = L.winTop + L.winH * 0.6, gr = tw * (1.9 + (f - 0.86) * 2);
+    const og = ctx.createRadialGradient(gx, gy, 0, gx, gy, gr);
+    og.addColorStop(0, `rgba(255,214,150,${0.36 * f})`);
+    og.addColorStop(1, 'rgba(255,214,150,0)');
+    ctx.globalCompositeOperation = 'screen';
+    ctx.fillStyle = og;
+    ctx.fillRect(gx - gr, gy - gr, gr * 2, gr * 2);
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
   function drawTower(cam, p) {
+    if (LOOK.felt && S.felt) { drawFeltTower(cam, p); return; }
     const L = S.L, tw = L.tw;
     setCam(cam, 1);
     const shade = 1 - smooth(clamp((p - 0.1) / 0.6, 0, 1));
@@ -590,15 +940,22 @@
     const base = L.groundY;
     ctx.beginPath();
     ctx.moveTo(-vw, base + S.vh * 3);
-    const crest = (x) => base - L.tw * 0.15 * Math.exp(-Math.pow((x - L.cx) / (L.tw * 2.5), 2)) + Math.sin(x * 0.009 + 2) * S.vh * 0.012;
-    for (let x = -vw * 0.6; x <= vw * 1.6; x += 8) ctx.lineTo(x, crest(x));
-    ctx.lineTo(vw * 1.6, base + S.vh * 3);
-    ctx.closePath();
-    const g = ctx.createLinearGradient(0, base - 20, 0, base + S.vh * 0.1);
-    g.addColorStop(0, '#71864f');
-    g.addColorStop(1, '#556a3b');
-    ctx.fillStyle = g;
-    ctx.fill();
+    const crest = (x) => groundCrest(L, x);
+    const felt = LOOK.felt && S.felt;
+    if (felt) {
+      ctx.fillStyle = '#5c7a3a';
+      ctx.fillRect(-vw, S.felt.groundBottom - 4, vw * 3.2, S.vh * 4);
+      blit(S.felt.ground);
+    } else {
+      for (let x = -vw * 0.6; x <= vw * 1.6; x += 8) ctx.lineTo(x, crest(x));
+      ctx.lineTo(vw * 1.6, base + S.vh * 3);
+      ctx.closePath();
+      const g = ctx.createLinearGradient(0, base - 20, 0, base + S.vh * 0.1);
+      g.addColorStop(0, '#71864f');
+      g.addColorStop(1, '#556a3b');
+      ctx.fillStyle = g;
+      ctx.fill();
+    }
 
     // the tower's shadow, cast down-right across the hill, and a dark contact line at its foot
     const shade = 1 - smooth(clamp((p - 0.1) / 0.6, 0, 1));
@@ -627,6 +984,8 @@
       ctx.beginPath(); ctx.ellipse(0, 0, 1, 1, 0, 0, Math.PI * 2); ctx.fill();
       ctx.restore();
     }
+
+    if (felt) { blit(S.felt.ivy); return; }
 
     ctx.lineCap = 'round';
     ctx.lineWidth = 1.4;
@@ -701,7 +1060,7 @@
   /* ---------- sandstone glints ---------- */
 
   // a four-pointed sparkle, drawn once and stamped wherever a grain catches the light
-  const sprite = (() => {
+  const glintSprite = (() => {
     const c = document.createElement('canvas');
     const n = 64, h = n / 2;
     c.width = c.height = n;
@@ -800,7 +1159,7 @@
           if (a < 0.03) continue;
           const d = size * sp.size * (0.5 + a * 0.6);
           gctx.globalAlpha = Math.min(1, a * 1.1);
-          gctx.drawImage(sprite, x - d / 2, y - d / 2, d, d);
+          gctx.drawImage(glintSprite, x - d / 2, y - d / 2, d, d);
         }
       }
     }
