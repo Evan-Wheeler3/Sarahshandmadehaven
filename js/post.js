@@ -554,21 +554,26 @@
 
     async function sequence() {
       /* 1. the letter rolls up from the bottom; the page follows the roll */
+      // The letter sits at a slight tilt, so the roll follows the letter's own
+      // (tilted) edge rather than a level line, and leans to match it.
       const r0 = form.getBoundingClientRect();
-      const top0 = r0.top + window.scrollY, bottom0 = r0.bottom + window.scrollY;
-      const left0 = r0.left + window.scrollX, width0 = r0.width;
+      const W = form.offsetWidth, Hh = form.offsetHeight;
+      const m = new DOMMatrixReadOnly(getComputedStyle(form).transform);
+      const tilt = Math.atan2(m.b, m.a);
+      const pcx = r0.left + r0.width / 2 + window.scrollX, pcy = r0.top + r0.height / 2 + window.scrollY;
       const rollStart = window.scrollY;
-      Object.assign(S, { visible: true, len: width0, T: 14, lip: 1, spin: 0 });
+      Object.assign(S, { visible: true, len: W, T: 14, lip: 1, spin: 0, rot: (tilt * 180) / Math.PI });
       scroll.g.style.display = '';
       const place = (e) => {
-        const y = bottom0 - (bottom0 - top0) * e;
+        const ly = Hh / 2 - Hh * e;                    // roll line, in the letter's own frame from its centre
+        const x = pcx - Math.sin(tilt) * ly, y = pcy + Math.cos(tilt) * ly;
         form.style.clipPath = `inset(0 0 ${(e * 100).toFixed(2)}% 0)`;
         const want = Math.min(rollStart, y - vh * 0.55);
         if (want < window.scrollY) window.scrollTo({ top: Math.max(0, want), behavior: 'instant' });
         S.T = lerp(14, 36, Math.sqrt(e));
-        S.x = left0 + width0 / 2 - window.scrollX;
+        S.x = x - window.scrollX;
         S.y = y - window.scrollY;
-        S.spin = (bottom0 - y) * 0.55;   // the paper's surface turns as it rolls
+        S.spin = Hh * e * 0.55;   // the paper's surface turns as it rolls
       };
       place(0);
       await anim(narrow ? 1350 : 1150, (t) => place(ease.inOutQ(t)));
@@ -577,7 +582,7 @@
       /* 2. it lifts off the wall, shrinks into a scroll and floats to the middle */
       const cx = vw / 2, cy = vh * (narrow ? 0.64 : 0.62);
       const L1 = narrow ? 170 : 220, T1 = narrow ? 40 : 46;
-      const from = { x: S.x, y: S.y, len: S.len, T: S.T };
+      const from = { x: S.x, y: S.y, len: S.len, T: S.T, rot: S.rot };
       await anim(700, (t) => {
         const e = ease.inOut(t);
         S.lip = 1 - ease.out(Math.min(1, t * 3));
@@ -585,7 +590,7 @@
         S.T = lerp(from.T, T1, e);
         S.x = lerp(from.x, cx, e);
         S.y = lerp(from.y, cy, e) - bump(t) * 50;
-        S.rot = Math.sin(t * Math.PI * 2) * 7 * (1 - t);
+        S.rot = from.rot * (1 - e) + Math.sin(t * Math.PI * 2) * 7 * (1 - t);
       });
       S.rot = 0;
       await anim(160, (t) => { S.squash = bump(t) * 0.6; });
