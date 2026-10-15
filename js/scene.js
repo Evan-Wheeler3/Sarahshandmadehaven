@@ -14,8 +14,8 @@
   // ?tower=grey shows the original grey stone; sandstone is the default
   const STYLE = new URLSearchParams(location.search).get('tower') === 'grey' ? 'grey' : 'sandstone';
   const LOOK = {
-    grey: { vignette: 0.62, wash: 0.1, ground: '#556a3b', wall: '#3d362f', sky: '#bfd0cf', glints: false },
-    sandstone: { vignette: 0.5, wash: 0.16, ground: '#556a3b', wall: '#6b5238', sky: '#bfd0cf', glints: true }
+    grey: { vignette: 0.62, wash: 0.1, calm: 0.12, ground: '#556a3b', wall: '#3d362f', sky: '#bfd0cf', glints: false },
+    sandstone: { vignette: 0.5, wash: 0.16, calm: 0.2, ground: '#556a3b', wall: '#6b5238', sky: '#bfd0cf', glints: true }
   }[STYLE];
   const themeMeta = document.querySelector('meta[name="theme-color"]');
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -483,6 +483,9 @@
     g.addColorStop(0, 'rgba(255,226,180,0)');
     g.addColorStop(1, `rgba(16,11,7,${LOOK.vignette * a})`);
     ctx.fillStyle = g;
+    ctx.fillRect(0, 0, vw, vh);
+    // a gentle dim so the cards on the wall stand out from the stone
+    ctx.fillStyle = `rgba(32,22,14,${LOOK.calm * a})`;
     ctx.fillRect(0, 0, vw, vh);
     // a warm wash from above, like lamplight
     const w = ctx.createLinearGradient(0, 0, 0, vh);

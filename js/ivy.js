@@ -92,7 +92,7 @@
       const m = Math.hypot(vx, vy); vx /= m; vy /= m;
       x += vx * step; y += vy * step;
       pts.push([x, y]);
-      if (depth < 1 && i > 3 && i < n - 3 && rnd() < 0.09) branches.push(i);
+      if (depth < 1 && i > 3 && i < n - 3 && rnd() < 0.05) branches.push(i);
       if (y < -60 || y > vh + 60) break;
     }
 
@@ -105,11 +105,11 @@
 
     // leaves along the vine, alternating sides
     let acc = 0, next = 6 + rnd() * 10, side = rnd() < 0.5 ? 1 : -1;
-    let untilFlower = 3 + Math.floor(rnd() * 4);
+    let untilFlower = 4 + Math.floor(rnd() * 4);
     for (let i = 1; i < pts.length - 1; i++) {
       acc += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
       if (acc < next) continue;
-      next = acc + 13 + rnd() * 14;
+      next = acc + 19 + rnd() * 20;
       const tx = pts[i + 1][0] - pts[i - 1][0], ty = pts[i + 1][1] - pts[i - 1][1];
       const phi = Math.atan2(ty, tx) + side * (0.8 + rnd() * 0.7);
       side = -side;
@@ -124,7 +124,7 @@
 
       // every few leaves, a little blossom tucked against the vine
       if (--untilFlower <= 0) {
-        untilFlower = 3 + Math.floor(rnd() * 5);
+        untilFlower = 5 + Math.floor(rnd() * 5);
         const n = rnd() < 0.3 ? 2 + Math.floor(rnd() * 2) : 1;
         const nx = -ty, ny = tx, nm = Math.hypot(nx, ny) || 1;
         for (let k = 0; k < n; k++) {

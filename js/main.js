@@ -13,6 +13,40 @@
   toTop();
   window.addEventListener('load', toTop);
 
+  /* Links to sections glide there gently instead of jumping. From the hero
+     this also plays the tower zoom on the way down. */
+  let glide = 0;
+  function glideTo(targetY) {
+    cancelAnimationFrame(glide);
+    const startY = window.scrollY;
+    const dist = targetY - startY;
+    if (reduceMotion || Math.abs(dist) < 2) { window.scrollTo({ top: targetY, behavior: 'instant' }); return; }
+    const dur = Math.min(3000, Math.max(1100, Math.abs(dist) * 0.7));
+    const t0 = performance.now();
+    const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+    const stop = () => { cancelAnimationFrame(glide); off(); };
+    const off = () => ['wheel', 'touchstart', 'keydown'].forEach((ev) => window.removeEventListener(ev, stop));
+    ['wheel', 'touchstart', 'keydown'].forEach((ev) => window.addEventListener(ev, stop, { passive: true }));
+    const step = (now) => {
+      const t = Math.min(1, (now - t0) / dur);
+      window.scrollTo({ top: startY + dist * easeInOut(t), behavior: 'instant' });
+      if (t < 1) glide = requestAnimationFrame(step); else off();
+    };
+    glide = requestAnimationFrame(step);
+  }
+  document.addEventListener('click', (e) => {
+    const a = e.target.closest('a[href^="#"]');
+    if (!a || a.getAttribute('href') === '#') return;
+    const target = a.getAttribute('href') === '#top' ? document.body : document.querySelector(a.getAttribute('href'));
+    if (!target) return;
+    e.preventDefault();
+    const navH = 76;
+    const y = target === document.body ? 0 : target.getBoundingClientRect().top + window.scrollY - navH;
+    glideTo(Math.max(0, Math.min(y, document.documentElement.scrollHeight - window.innerHeight)));
+    target.setAttribute('tabindex', '-1');
+    target.focus({ preventScroll: true });
+  });
+
   /* Instagram links */
   document.querySelectorAll('[data-ig]').forEach((a) => {
     a.href = a.dataset.ig === 'dm'

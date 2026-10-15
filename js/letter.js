@@ -21,7 +21,18 @@
   const sentCopy = sent.querySelector('[data-sent-copy]');
   const sentDetails = sent.querySelector('details');
 
-  if (!EMAIL) form.querySelectorAll('[data-email-only]').forEach((e) => e.remove());
+  // The print choices come straight from the gallery, so they always match it
+  const printSelect = form.elements.print;
+  const thumbs = document.querySelectorAll('.thumb[data-print]');
+  thumbs.forEach((t) => {
+    const o = document.createElement('option');
+    o.textContent = t.dataset.print;
+    printSelect.appendChild(o);
+    // looking at a print in the gallery pencils it into the letter, if no print is chosen yet
+    t.addEventListener('click', () => {
+      if (!printSelect.value) { printSelect.value = t.dataset.print; fit(printSelect); saveDraft(); }
+    });
+  });
 
   form.querySelector('[data-letter-date]').textContent =
     new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
@@ -78,11 +89,7 @@
     if (e.target.classList.contains('is-missing')) e.target.classList.remove('is-missing');
     saveDraft();
   });
-  form.addEventListener('change', (e) => {
-    const group = e.target.closest('.ticks');
-    if (group) group.classList.remove('is-missing');
-    saveDraft();
-  });
+  form.addEventListener('change', saveDraft);
 
   /* ---------- reading and checking the letter ---------- */
 
@@ -90,26 +97,25 @@
     const f = form.elements;
     const val = (name) => (f[name] && f[name].value ? String(f[name].value).trim() : '');
     return {
-      qty: val('qty') || 'one',
       print: val('print'),
-      size: val('size'),
-      town: val('town'),
-      delivery: val('delivery'),
-      contact: val('contact'),
+      city: val('city'),
+      email: val('email'),
       note: val('note'),
-      name: val('name'),
-      via: val('via') || 'instagram'
+      name: val('name')
     };
   }
 
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   function check(d) {
     const missing = [];
     const need = (ok, el) => { if (!ok) { el.classList.add('is-missing'); missing.push(el); } };
     need(d.print, form.elements.print);
-    need(d.size, form.elements.size);
-    need(d.town, form.elements.town);
-    need(d.delivery, form.querySelector('[data-required="delivery"]'));
+    need(d.city, form.elements.city);
+    need(EMAIL_RE.test(d.email), form.elements.email);
     need(d.name, form.elements.name);
+    errorEl.textContent = d.email && !EMAIL_RE.test(d.email) && missing.length === 1
+      ? 'That email doesn’t look quite right.'
+      : 'A few blanks still need filling in.';
     return missing;
   }
 
@@ -117,11 +123,10 @@
     const lines = [
       'Dear Sarah,',
       '',
-      `I would love ${d.qty} of your fabric book covers, in the ${d.print}, sized for a ${d.size}.`,
+      `I would love a fabric book cover in the ${d.print} print.`,
       '',
-      `I live in ${d.town}, and I'd like to ${d.delivery}.`
+      `I live in ${d.city}, and you can write back to me at ${d.email}.`
     ];
-    if (d.contact) lines.push(`If it's easier, you can also reach me at ${d.contact}.`);
     if (d.note) lines.push('', `P.S. ${d.note}`);
     lines.push('', 'With warm wishes,', d.name, '', "(Written on the Sarah's Handmade Haven website)");
     return lines.join('\n');
@@ -165,14 +170,13 @@
       form.classList.remove('is-shaking');
       void form.offsetWidth;
       form.classList.add('is-shaking');
-      const first = missing[0].matches('.ticks') ? missing[0].querySelector('input') : missing[0];
-      first.focus({ preventScroll: false });
+      missing[0].focus({ preventScroll: false });
       return;
     }
     errorEl.hidden = true;
 
     const text = compose(d);
-    const viaEmail = d.via === 'email' && EMAIL;
+    const viaEmail = !!EMAIL; // email when Sarah's address is set, otherwise Instagram
     const copied = copyText(text);
 
     prepareSent(d, text, viaEmail, copied);
@@ -189,7 +193,7 @@
     sentText.value = text;
     sentDetails.open = !viaEmail && !copied;
     if (viaEmail) {
-      const subject = `Book cover order letter from ${d.name}`;
+      const subject = `Book cover letter from ${d.name}`;
       sentGo.href = `mailto:${EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text.replace(/\n/g, '\r\n'))}`;
       sentGo.removeAttribute('target');
       sentGo.textContent = 'Open my email';

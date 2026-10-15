@@ -67,7 +67,7 @@
       <div class="card card--note">
         <p class="kicker">welcome in</p>
         <h2>A little haven for well-loved books</h2>
-        <p>Every cover here is cut, pinned and stitched by hand from fabric I fell in love with. They keep your book safe in a tote bag, feel lovely to hold, and make even a battered paperback look like a treasure.</p>
+        <p>Fabric covers, cut and stitched by hand, to keep your favorite book safe and make it feel like a treasure.</p>
       </div>
     </section>
 
@@ -79,16 +79,16 @@
                  alt="Fabric book cover in a sage floral print with a button strap">
           </figure>
           <div class="thumbs">
-            <button class="thumb" type="button" aria-pressed="true" aria-label="Sage floral print">
+            <button class="thumb" type="button" aria-pressed="true" aria-label="Sage floral print" data-print="sage floral">
               <img src="images/cover-floral.svg" alt="Fabric book cover in a sage floral print with a button strap" width="800" height="800">
             </button>
-            <button class="thumb" type="button" aria-pressed="false" aria-label="Rose gingham print">
+            <button class="thumb" type="button" aria-pressed="false" aria-label="Rose gingham print" data-print="rose gingham">
               <img src="images/cover-gingham.svg" alt="Fabric book cover in a dusty rose gingham" width="800" height="800">
             </button>
-            <button class="thumb" type="button" aria-pressed="false" aria-label="Mushroom print">
+            <button class="thumb" type="button" aria-pressed="false" aria-label="Mushroom print" data-print="mushroom">
               <img src="images/cover-mushroom.svg" alt="Fabric book cover with little red mushrooms on cream" width="800" height="800">
             </button>
-            <button class="thumb" type="button" aria-pressed="false" aria-label="Moon and stars print">
+            <button class="thumb" type="button" aria-pressed="false" aria-label="Moon and stars print" data-print="moon &amp; stars">
               <img src="images/cover-stars.svg" alt="Fabric book cover in navy with gold moons and stars" width="800" height="800">
             </button>
           </div>
@@ -98,42 +98,15 @@
           <p class="kicker">handmade &amp; one of a kind</p>
           <h2>Fabric Book Covers</h2>
           <div class="price-tag" aria-label="Price: 20 dollars"><span>$20</span></div>
-          <p class="lede">A soft, padded jacket for the book you can't put down. Slip it on, carry it everywhere, and move it to the next book when you're done.</p>
+          <p class="lede">A soft, padded jacket for the book you can't put down.</p>
           <ul class="stitch-list">
             <li>Sewn by hand, one at a time</li>
-            <li>Keeps corners and spines safe in your bag</li>
-            <li>Slips on and off easily, so it's reusable</li>
-            <li>Prints change often, so no two batches are the same</li>
+            <li>Protects corners and spines</li>
+            <li>Slips on and off, so it's reusable</li>
           </ul>
-          <a class="btn" href="#letter">Write me an order letter</a>
-          <p class="fine">Prints shown are examples. Ask in your letter what fabric is on the shelf right now.</p>
+          <a class="btn" href="#letter">Order with a letter</a>
         </div>
       </article>
-    </section>
-
-    <section class="section" id="order">
-      <div class="card steps">
-        <p class="kicker">simple as can be</p>
-        <h2>How to order</h2>
-        <ol class="steps__list">
-          <li>
-            <span class="steps__num">1</span>
-            <h3>Pick a print</h3>
-            <p>Browse the newest fabrics on Instagram, or ask what's available.</p>
-          </li>
-          <li>
-            <span class="steps__num">2</span>
-            <h3>Write me a letter</h3>
-            <p>Fill in the letter below and send it by Instagram message or email.</p>
-          </li>
-          <li>
-            <span class="steps__num">3</span>
-            <h3>I'll write back</h3>
-            <p>I'm a one-person shop, so I'll let you know if I can make yours. Then we sort out payment and getting it to you.</p>
-          </li>
-        </ol>
-        <a class="btn btn--ghost" href="#letter">Start a letter</a>
-      </div>
     </section>
 
     <section class="section" id="letter">
@@ -155,58 +128,26 @@
           <p class="letter__greeting">Dear Sarah,</p>
 
           <p class="letter__line">
-            I would love
-            <label class="visually-hidden" for="l-qty">How many covers</label>
-            <select class="blank blank--select" id="l-qty" name="qty">
-              <option value="one">one</option>
-              <option value="two">two</option>
-              <option value="three">three</option>
-              <option value="four">four</option>
-              <option value="five">five</option>
-            </select>
-            of your fabric book covers, in the
+            I would love a fabric book cover in the
             <label class="visually-hidden" for="l-print">Which print</label>
             <select class="blank blank--select" id="l-print" name="print" required>
               <option value="" selected disabled>choose a print</option>
-              <option>sage floral print</option>
-              <option>rose gingham print</option>
-              <option>mushroom print</option>
-              <option>moon &amp; stars print</option>
-              <option>print of your choosing (surprise me!)</option>
-              <option>print I'll describe below</option>
-            </select>,
-            sized for a
-            <label class="visually-hidden" for="l-size">Book size</label>
-            <select class="blank blank--select" id="l-size" name="size" required>
-              <option value="" selected disabled>book size</option>
-              <option>small paperback</option>
-              <option>trade paperback</option>
-              <option>hardcover</option>
-              <option>book I'll describe below</option>
-            </select>.
+            </select>
+            print.
           </p>
 
           <p class="letter__line">
             I live in
-            <label class="visually-hidden" for="l-town">Your town or city</label>
-            <input class="blank" id="l-town" name="town" type="text" autocomplete="address-level2" placeholder="town or city" required>,
-            and I'd like to
-            <span class="ticks" role="radiogroup" aria-label="Pickup or shipping" data-required="delivery">
-              <label class="tick"><input type="radio" name="delivery" value="pick it up from you"><span>pick it up from you</span></label>
-              <span class="ticks__or">or</span>
-              <label class="tick"><input type="radio" name="delivery" value="have it mailed to me"><span>have it mailed to me</span></label>
-            </span>.
-          </p>
-
-          <p class="letter__line">
-            If it's easier, you can also reach me at
-            <label class="visually-hidden" for="l-contact">Email, phone or Instagram (optional)</label>
-            <input class="blank" id="l-contact" name="contact" type="text" autocomplete="email" placeholder="email, phone or @instagram">.
+            <label class="visually-hidden" for="l-city">Your city</label>
+            <input class="blank" id="l-city" name="city" type="text" autocomplete="address-level2" placeholder="your city" required>,
+            and you can write back to me at
+            <label class="visually-hidden" for="l-email">Your email</label>
+            <input class="blank" id="l-email" name="email" type="email" inputmode="email" autocomplete="email" placeholder="your email" required>.
           </p>
 
           <div class="letter__ps">
             <label for="l-note">P.S.</label>
-            <textarea class="blank blank--area" id="l-note" name="note" rows="3" placeholder="the book's title, a color you love, when you need it by…"></textarea>
+            <textarea class="blank blank--area" id="l-note" name="note" rows="2" placeholder="anything else: the book, a color you love, when you need it by…"></textarea>
           </div>
 
           <div class="letter__signoff">
@@ -216,21 +157,13 @@
           </div>
 
           <div class="letter__send">
-            <p class="letter__via">
-              Send my letter by
-              <span class="ticks" role="radiogroup" aria-label="How to send" data-required="via">
-                <label class="tick"><input type="radio" name="via" value="instagram" checked><span>Instagram message</span></label>
-                <span class="ticks__or" data-email-only>or</span>
-                <label class="tick" data-email-only><input type="radio" name="via" value="email"><span>email</span></label>
-              </span>
-            </p>
             <button class="seal" type="submit">
               <span class="seal__wax" aria-hidden="true">S</span>
               <span class="seal__label">Seal &amp; send</span>
             </button>
           </div>
-          <p class="letter__error" role="alert" hidden>A few blanks still need filling in.</p>
-          <p class="letter__small">Sending a letter doesn't commit either of us to anything. Everything is made by hand, so Sarah will write back to let you know if she can take your order.</p>
+          <p class="letter__error" role="alert" hidden></p>
+          <p class="letter__small">Everything is made by hand, so I'll write back to let you know if I can take your order.</p>
         </form>
 
         <div class="letter-sent card" id="letter-sent" hidden tabindex="-1">
@@ -254,9 +187,8 @@
         <div>
           <p class="kicker">the maker</p>
           <h2>Hi, I'm Sarah</h2>
-          <p>Sarah's Handmade Haven is my little corner for making things by hand. It started with a sewing machine, a pile of fabric scraps, and a stack of books that needed protecting.</p>
-          <p>Book covers are what I'm making right now, but other handmade goodies turn up from time to time. Follow along on Instagram so you don't miss them.</p>
-          <a class="btn btn--ghost" data-ig href="#">Follow <span data-ig-handle>on Instagram</span></a>
+          <p>This is my little corner for making things by hand. Book covers are what I'm sewing right now, and other handmade goodies turn up from time to time on Instagram.</p>
+          <a class="btn btn--ghost" data-ig href="#">Follow on Instagram</a>
         </div>
       </div>
     </section>
