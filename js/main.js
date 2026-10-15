@@ -3,8 +3,8 @@
 (function () {
   'use strict';
 
-  // ✏️ Sarah's Instagram username (without the @). Every Instagram link on the page uses this.
-  const INSTAGRAM = '__sarahshandmadehaven__';
+  // Set in js/config.js
+  const INSTAGRAM = (window.HAVEN_CONFIG || {}).instagram || '__sarahshandmadehaven__';
 
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 

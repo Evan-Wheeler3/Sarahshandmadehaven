@@ -34,7 +34,7 @@
     </a>
     <ul class="topnav__links">
       <li><a href="#shop">Book Covers</a></li>
-      <li><a href="#order">How to Order</a></li>
+      <li><a href="#letter">Order</a></li>
       <li><a href="#about">About</a></li>
       <li><a class="topnav__ig" data-ig href="#">Instagram</a></li>
     </ul>
@@ -99,8 +99,8 @@
             <li>Slips on and off easily, so it's reusable</li>
             <li>Prints change often, so no two batches are the same</li>
           </ul>
-          <a class="btn" data-ig="dm" href="#">Order on Instagram</a>
-          <p class="fine">Prints shown are examples. Message me to see what fabric is on the shelf right now, and tell me what size book it's for.</p>
+          <a class="btn" href="#letter">Write me an order letter</a>
+          <p class="fine">Prints shown are examples. Ask in your letter what fabric is on the shelf right now.</p>
         </div>
       </article>
     </section>
@@ -117,16 +117,128 @@
           </li>
           <li>
             <span class="steps__num">2</span>
-            <h3>Send a message</h3>
-            <p>DM me the print you love and the book you'd like it to fit.</p>
+            <h3>Write me a letter</h3>
+            <p>Fill in the letter below and send it by Instagram message or email.</p>
           </li>
           <li>
             <span class="steps__num">3</span>
-            <h3>I stitch it up</h3>
-            <p>We'll sort out payment and getting it to you, and then your cover gets made.</p>
+            <h3>I'll write back</h3>
+            <p>I'm a one-person shop, so I'll let you know if I can make yours. Then we sort out payment and getting it to you.</p>
           </li>
         </ol>
-        <a class="btn btn--ghost" data-ig="dm" href="#">Message <span data-ig-handle>on Instagram</span></a>
+        <a class="btn btn--ghost" href="#letter">Start a letter</a>
+      </div>
+    </section>
+
+    <section class="section" id="letter">
+      <div class="letter-wrap">
+        <form class="letter" id="order-letter" novalidate aria-labelledby="letter-heading">
+          <h2 class="visually-hidden" id="letter-heading">Order letter</h2>
+          <div class="letter__stamp" aria-hidden="true">
+            <svg viewBox="0 0 80 96" width="80" height="96">
+              <rect x="2" y="2" width="76" height="92" rx="2" fill="#f4e6c9" stroke="#e0caa0" stroke-width="2" stroke-dasharray="4 3"/>
+              <rect x="10" y="10" width="60" height="64" fill="#a8c0c4"/>
+              <path d="M10 60 Q30 52 50 58 T70 54 V74 H10Z" fill="#7f9a62"/>
+              <path d="M34 22h3v-4h3v4h4v-4h3v4h3v-4h3v8l-3 2v32H37V28l-3-2z" fill="#d9b27c"/>
+              <path d="M41 36a2.5 2.5 0 0 1 5 0v6h-5z" fill="#f2b862"/>
+              <text x="40" y="86" text-anchor="middle" font-family="Georgia, serif" font-size="8" fill="#7c3a2b">$20 · HAVEN</text>
+            </svg>
+          </div>
+          <p class="letter__date" data-letter-date></p>
+
+          <p class="letter__greeting">Dear Sarah,</p>
+
+          <p class="letter__line">
+            I would love
+            <label class="visually-hidden" for="l-qty">How many covers</label>
+            <select class="blank blank--select" id="l-qty" name="qty">
+              <option value="one">one</option>
+              <option value="two">two</option>
+              <option value="three">three</option>
+              <option value="four">four</option>
+              <option value="five">five</option>
+            </select>
+            of your fabric book covers, in the
+            <label class="visually-hidden" for="l-print">Which print</label>
+            <select class="blank blank--select" id="l-print" name="print" required>
+              <option value="" selected disabled>choose a print</option>
+              <option>sage floral print</option>
+              <option>rose gingham print</option>
+              <option>mushroom print</option>
+              <option>moon &amp; stars print</option>
+              <option>print of your choosing (surprise me!)</option>
+              <option>print I'll describe below</option>
+            </select>,
+            sized for a
+            <label class="visually-hidden" for="l-size">Book size</label>
+            <select class="blank blank--select" id="l-size" name="size" required>
+              <option value="" selected disabled>book size</option>
+              <option>small paperback</option>
+              <option>trade paperback</option>
+              <option>hardcover</option>
+              <option>book I'll describe below</option>
+            </select>.
+          </p>
+
+          <p class="letter__line">
+            I live in
+            <label class="visually-hidden" for="l-town">Your town or city</label>
+            <input class="blank" id="l-town" name="town" type="text" autocomplete="address-level2" placeholder="town or city" required>,
+            and I'd like to
+            <span class="ticks" role="radiogroup" aria-label="Pickup or shipping" data-required="delivery">
+              <label class="tick"><input type="radio" name="delivery" value="pick it up from you"><span>pick it up from you</span></label>
+              <span class="ticks__or">or</span>
+              <label class="tick"><input type="radio" name="delivery" value="have it mailed to me"><span>have it mailed to me</span></label>
+            </span>.
+          </p>
+
+          <p class="letter__line">
+            If it's easier, you can also reach me at
+            <label class="visually-hidden" for="l-contact">Email, phone or Instagram (optional)</label>
+            <input class="blank" id="l-contact" name="contact" type="text" autocomplete="email" placeholder="email, phone or @instagram">.
+          </p>
+
+          <div class="letter__ps">
+            <label for="l-note">P.S.</label>
+            <textarea class="blank blank--area" id="l-note" name="note" rows="3" placeholder="the book's title, a color you love, when you need it by…"></textarea>
+          </div>
+
+          <div class="letter__signoff">
+            <p>With warm wishes,</p>
+            <label class="visually-hidden" for="l-name">Your name</label>
+            <input class="blank blank--sign" id="l-name" name="name" type="text" autocomplete="name" placeholder="your name" required>
+          </div>
+
+          <div class="letter__send">
+            <p class="letter__via">
+              Send my letter by
+              <span class="ticks" role="radiogroup" aria-label="How to send" data-required="via">
+                <label class="tick"><input type="radio" name="via" value="instagram" checked><span>Instagram message</span></label>
+                <span class="ticks__or" data-email-only>or</span>
+                <label class="tick" data-email-only><input type="radio" name="via" value="email"><span>email</span></label>
+              </span>
+            </p>
+            <button class="seal" type="submit">
+              <span class="seal__wax" aria-hidden="true">S</span>
+              <span class="seal__label">Seal &amp; send</span>
+            </button>
+          </div>
+          <p class="letter__error" role="alert" hidden>A few blanks still need filling in.</p>
+          <p class="letter__small">Sending a letter doesn't commit either of us to anything. Everything is made by hand, so Sarah will write back to let you know if she can take your order.</p>
+        </form>
+
+        <div class="letter-sent card" id="letter-sent" hidden tabindex="-1">
+          <p class="kicker">off it flies</p>
+          <h2>Your letter is sealed!</h2>
+          <p class="letter-sent__msg" data-sent-msg></p>
+          <a class="btn" data-sent-go href="#" target="_blank" rel="noopener"></a>
+          <details class="letter-sent__copy">
+            <summary>See or copy your letter</summary>
+            <textarea readonly rows="10" data-sent-text></textarea>
+            <button class="btn btn--ghost" type="button" data-sent-copy>Copy letter</button>
+          </details>
+          <p><button class="link-btn" type="button" data-sent-again>Write another letter</button></p>
+        </div>
       </div>
     </section>
 
@@ -149,9 +261,11 @@
     <p>Made by hand, with love · © <span data-year>2026</span></p>
   </footer>
 
+  <script src="js/config.js" defer></script>
   <script src="js/stone.js" defer></script>
   <script src="js/scene.js" defer></script>
   <script src="js/ivy.js" defer></script>
   <script src="js/main.js" defer></script>
+  <script src="js/letter.js" defer></script>
 </body>
 </html>

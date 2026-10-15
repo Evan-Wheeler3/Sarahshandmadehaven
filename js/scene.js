@@ -109,6 +109,15 @@
     const base = window.HavenStone.makeTile(S.tileW, S.tileH, S.tileDpr, 1871, STYLE, rowH);
     S.sparkles = base.sparkles || [];
     S.mips = window.HavenStone.makeMips(base);
+    // the wall's average colour, for the strip just below the screen edge
+    try {
+      const px = document.createElement('canvas').getContext('2d');
+      px.drawImage(S.mips[S.mips.length - 1], 0, 0, 1, 1);
+      const [r, g, b] = px.getImageData(0, 0, 1, 1).data;
+      S.wallAvg = `rgb(${r},${g},${b})`;
+    } catch (e) {
+      S.wallAvg = LOOK.wall;
+    }
     S.patterns = S.mips.map((c) => ctx.createPattern(c, 'repeat'));
   }
 
@@ -631,9 +640,11 @@
     const phase = p < 0.45 ? 'hero' : 'wall';
     if (phase === lastPhase) return;
     lastPhase = phase;
-    const c = phase === 'hero' ? LOOK.sky : LOOK.wall;
+    const c = phase === 'hero' ? LOOK.sky : (S.wallAvg || LOOK.wall);
     root.style.backgroundColor = c;
     document.body.style.backgroundColor = c;
+    // what shows if the browser ever reveals a sliver below the scene
+    root.style.setProperty('--edge', phase === 'hero' ? LOOK.ground : (S.wallAvg || LOOK.wall));
     if (themeMeta) themeMeta.setAttribute('content', phase === 'hero' ? LOOK.sky : LOOK.wall);
   }
 
