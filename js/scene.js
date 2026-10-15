@@ -8,7 +8,7 @@
   const hero = document.getElementById('top');
   if (!canvas || !canvas.getContext || !window.HavenStone) return;
 
-  const ctx = canvas.getContext('2d');
+  let ctx = canvas.getContext('2d');
   const glintCanvas = document.getElementById('glint');
   const gctx = glintCanvas ? glintCanvas.getContext('2d') : null;
   // Felt and stitching is the default. ?tower=sandstone or ?tower=grey show
@@ -23,6 +23,7 @@
   const themeMeta = document.querySelector('meta[name="theme-color"]');
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const root = document.documentElement;
+  const heroStage = document.querySelector('.hero__stage');
   root.classList.toggle('is-felt', !!LOOK.felt);
 
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -91,14 +92,29 @@
   function sprite(x0, y0, w, h, res, draw) {
     res = Math.min(res, 4096 / w, 4096 / h);
     const c = document.createElement('canvas');
+    c.res = res;
     c.width = Math.max(1, Math.ceil(w * res));
     c.height = Math.max(1, Math.ceil(h * res));
     const x = c.getContext('2d');
     x.setTransform(res, 0, 0, res, -x0 * res, -y0 * res);
     draw(x);
-    return { c, x0, y0, w: c.width / res, h: c.height / res };
+    return { c, x0, y0, w: c.width / res, h: c.height / res, res };
   }
-  function blit(sp) { if (sp) ctx.drawImage(sp.c, sp.x0, sp.y0, sp.w, sp.h); }
+  function blit(sp) {
+    if (!sp) return;
+    // copy only the part of the sprite that is on screen
+    const m = ctx.getTransform().inverse();
+    const W = canvas.width, H = canvas.height;
+    const xs = [m.e, m.a * W + m.e, m.c * H + m.e, m.a * W + m.c * H + m.e];
+    const ys = [m.f, m.b * W + m.f, m.d * H + m.f, m.b * W + m.d * H + m.f];
+    const x0 = Math.max(sp.x0, Math.min(...xs)), x1 = Math.min(sp.x0 + sp.w, Math.max(...xs));
+    const y0 = Math.max(sp.y0, Math.min(...ys)), y1 = Math.min(sp.y0 + sp.h, Math.max(...ys));
+    if (x1 <= x0 || y1 <= y0) return;
+    const kx = sp.c.width / sp.w, ky = sp.c.height / sp.h;
+    const sx = (x0 - sp.x0) * kx, sy = (y0 - sp.y0) * ky;
+    const sw = Math.max(1, (x1 - x0) * kx), sh = Math.max(1, (y1 - y0) * ky);
+    ctx.drawImage(sp.c, sx, sy, Math.min(sw, sp.c.width - sx), Math.min(sh, sp.c.height - sy), x0, y0, x1 - x0, y1 - y0);
+  }
 
   function hillPts(baseY, amp, f1, f2, phase, x0, x1, bottom) {
     const pts = [[x0, bottom]];
@@ -317,6 +333,19 @@
       feltFlower(x, F, L.cx + tw * 0.31, gy - tw * 0.4, sc * 1.1, '#c9b0ea', r);
     });
 
+    // the tower's stones, and its shading and stitching, drawn once
+    const tb = [L.cx - tw * 0.75, L.topY - 4, tw * 1.5, L.baseY - L.topY + 8];
+    const towerRes = dpr * 2.5;
+    out.towerStones = sprite(tb[0], tb[1], tb[2], tb[3], towerRes, (x) => {
+      const want = (towerRes * TOWER_STONE) / (L.Z * S.tileDpr);
+      let i = clamp(Math.floor(Math.log2(1 / Math.max(want, 1e-4))), 0, S.mips.length - 1);
+      const pat = x.createPattern(S.mips[i], 'repeat');
+      const k = ((S.mips[0].width / S.mips[i].width) * TOWER_STONE) / (L.Z * S.tileDpr);
+      pat.setTransform(new DOMMatrix([k, 0, 0, k, L.F.x, L.F.y]));
+      x.fillStyle = pat;
+      towerBody(x); x.fill();
+    });
+    out.fringeTile = null;
     // fringe: short loose fibres for the tower's fuzzy outline
     const fr = document.createElement('canvas');
     fr.width = fr.height = 48;
@@ -329,6 +358,7 @@
       fx.beginPath(); fx.moveTo(px, py); fx.lineTo(px + Math.cos(a) * len, py + Math.sin(a) * len); fx.stroke();
     }
     out.fringe = ctx.createPattern(fr, 'repeat');
+    out.towerShade = sprite(tb[0], tb[1], tb[2], tb[3], towerRes, (x) => towerShading(x, x.createPattern(fr, 'repeat'), 1));
     return out;
   }
 
@@ -613,67 +643,77 @@
     return 0.86 + 0.08 * Math.sin(t * 7.3) * Math.sin(t * 2.1 + 1) + 0.04 * Math.sin(t * 23.7) + pulse;
   }
 
+  function towerShading(c, fringe, shade) {
+    const L = S.L, tw = L.tw;
+    // light from the upper left on a round tower
+    const g = c.createLinearGradient(L.cx - tw * 0.54, 0, L.cx + tw * 0.54, 0);
+    g.addColorStop(0, `rgba(42,23,8,${0.42 * shade})`);
+    g.addColorStop(0.22, `rgba(255,242,216,${0.1 * shade})`);
+    g.addColorStop(0.45, 'rgba(42,23,8,0)');
+    g.addColorStop(1, `rgba(42,23,8,${0.58 * shade})`);
+    c.fillStyle = g;
+    towerBody(c); c.fill();
+    // shadow under the parapet, haze toward the ground
+    c.save();
+    towerBody(c); c.clip();
+    const sg = c.createLinearGradient(0, L.topY + tw * 0.25, 0, L.topY + tw * 0.8);
+    sg.addColorStop(0, `rgba(20,12,4,${0.55 * shade})`);
+    sg.addColorStop(1, 'rgba(20,12,4,0)');
+    c.fillStyle = sg;
+    c.fillRect(L.cx - tw, L.topY + tw * 0.25, tw * 2, tw * 0.55);
+    const hg = c.createLinearGradient(0, L.groundY - tw * 2, 0, L.groundY);
+    hg.addColorStop(0, 'rgba(50,40,24,0)');
+    hg.addColorStop(1, `rgba(50,40,24,${0.3 * shade})`);
+    c.fillStyle = hg;
+    c.fillRect(L.cx - tw, L.groundY - tw * 2, tw * 2, tw * 2.5);
+    c.restore();
+    // a fuzzy fibre outline, and a seam stitched down each side
+    c.save();
+    c.globalAlpha = shade;
+    c.lineJoin = 'round';
+    c.strokeStyle = fringe;
+    c.lineWidth = Math.max(2, tw * 0.03);
+    towerBody(c); c.stroke();
+    c.lineCap = 'round';
+    c.setLineDash([tw * 0.075, tw * 0.055]);
+    const seam = (side, color) => {
+      const y0 = L.topY + tw * 0.42, y1 = L.groundY - tw * 0.05;
+      const xAt = (y) => L.cx + side * (halfWidth(y) - tw * 0.07);
+      for (const [col, ox, oy] of [['rgba(20,10,2,.45)', tw * 0.008, tw * 0.011], [color, 0, 0]]) {
+        c.strokeStyle = col;
+        c.lineWidth = tw * 0.019;
+        c.beginPath(); c.moveTo(xAt(y0) + ox, y0 + oy); c.lineTo(xAt(y1) + ox, y1 + oy); c.stroke();
+      }
+    };
+    seam(-1, '#fff1d6');
+    seam(1, '#3b2614');
+    c.restore();
+  }
+
   function drawFeltTower(cam, p) {
     const L = S.L, tw = L.tw, FL = S.felt;
     setCam(cam, 1);
     const shade = 1 - smooth(clamp((p - 0.1) / 0.6, 0, 1));
     const fade = reduceMotion ? 0 : smooth(clamp((p - FADE[0]) / (FADE[1] - FADE[0]), 0, 1));
 
-    ctx.fillStyle = stonePattern(cam.z, TOWER_STONE);
-    towerBody(); ctx.fill();
+    // close up, the pre-drawn tower would look soft, so draw the stones live
+    const sharpEnough = S.dpr * cam.z <= FL.towerStones.res * 1.15;
+    if (sharpEnough && fade <= 0.001) {
+      blit(FL.towerStones);
+    } else {
+      ctx.fillStyle = stonePattern(cam.z, TOWER_STONE);
+      towerBody(); ctx.fill();
+    }
     if (fade > 0.001) {
       ctx.globalAlpha = fade;
       ctx.fillStyle = stonePattern(cam.z, 1);
       towerBody(); ctx.fill();
       ctx.globalAlpha = 1;
     }
-
     if (shade > 0.001) {
-      // light from the upper left on a round tower
-      const g = ctx.createLinearGradient(L.cx - tw * 0.54, 0, L.cx + tw * 0.54, 0);
-      g.addColorStop(0, `rgba(42,23,8,${0.42 * shade})`);
-      g.addColorStop(0.22, `rgba(255,242,216,${0.1 * shade})`);
-      g.addColorStop(0.45, 'rgba(42,23,8,0)');
-      g.addColorStop(1, `rgba(42,23,8,${0.58 * shade})`);
-      ctx.fillStyle = g;
-      towerBody(); ctx.fill();
-
-      // shadow under the parapet, haze toward the ground
-      ctx.save();
-      towerBody(); ctx.clip();
-      const sg = ctx.createLinearGradient(0, L.topY + tw * 0.25, 0, L.topY + tw * 0.8);
-      sg.addColorStop(0, `rgba(20,12,4,${0.55 * shade})`);
-      sg.addColorStop(1, 'rgba(20,12,4,0)');
-      ctx.fillStyle = sg;
-      ctx.fillRect(L.cx - tw, L.topY + tw * 0.25, tw * 2, tw * 0.55);
-      const hg = ctx.createLinearGradient(0, L.groundY - tw * 2, 0, L.groundY);
-      hg.addColorStop(0, 'rgba(50,40,24,0)');
-      hg.addColorStop(1, `rgba(50,40,24,${0.3 * shade})`);
-      ctx.fillStyle = hg;
-      ctx.fillRect(L.cx - tw, L.groundY - tw * 2, tw * 2, tw * 2.5);
-      ctx.restore();
-
-      // a fuzzy fibre outline, and a seam stitched down each side
-      ctx.save();
       ctx.globalAlpha = shade;
-      ctx.lineJoin = 'round';
-      ctx.strokeStyle = FL.fringe;
-      ctx.lineWidth = Math.max(2, tw * 0.03);
-      towerBody(); ctx.stroke();
-      ctx.lineCap = 'round';
-      ctx.setLineDash([tw * 0.075, tw * 0.055]);
-      const seam = (side, color) => {
-        const y0 = L.topY + tw * 0.42, y1 = L.groundY - tw * 0.05;
-        const xAt = (y) => L.cx + side * (halfWidth(y) - tw * 0.07);
-        for (const [c, ox, oy] of [['rgba(20,10,2,.45)', tw * 0.008, tw * 0.011], [color, 0, 0]]) {
-          ctx.strokeStyle = c;
-          ctx.lineWidth = tw * 0.019;
-          ctx.beginPath(); ctx.moveTo(xAt(y0) + ox, y0 + oy); ctx.lineTo(xAt(y1) + ox, y1 + oy); ctx.stroke();
-        }
-      };
-      seam(-1, '#fff1d6');
-      seam(1, '#3b2614');
-      ctx.restore();
+      blit(FL.towerShade);
+      ctx.globalAlpha = 1;
     }
 
     blit(FL.slit);
@@ -1011,6 +1051,24 @@
     const { vw, vh, dpr } = S;
     const a = smooth(clamp((p - 0.35) / 0.65, 0, 1));
     if (a <= 0.001) return;
+    if (!S.wallLight || S.wallLight.width !== canvas.width || S.wallLight.height !== canvas.height) {
+      // drawn once at full strength, then faded in
+      const c = document.createElement('canvas');
+      c.width = canvas.width; c.height = canvas.height;
+      const keep = ctx;
+      ctx = c.getContext('2d');
+      drawWallLightLive(1);
+      ctx = keep;
+      S.wallLight = c;
+    }
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalAlpha = a;
+    ctx.drawImage(S.wallLight, 0, 0);
+    ctx.globalAlpha = 1;
+  }
+
+  function drawWallLightLive(a) {
+    const { vw, vh, dpr } = S;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const r = Math.max(vw, vh);
     const g = ctx.createRadialGradient(vw / 2, vh * 0.42, r * 0.15, vw / 2, vh * 0.5, r * 0.8);
@@ -1216,9 +1274,13 @@
     drawGlints();
     syncChrome(S.p);
 
-    const cssP = Math.round(S.p * 1000) / 1000;
-    if (cssP !== lastCssP) {
-      root.style.setProperty('--p', cssP);
+    // fade the hero title directly (setting a variable on the page root would
+    // make the browser restyle the whole page on every frame); once it has
+    // faded out there is nothing left to update
+    const cssP = Math.min(0.4, Math.round(S.p * 1000) / 1000);
+    if (cssP !== lastCssP && heroStage) {
+      heroStage.style.opacity = Math.max(0, 1 - cssP * 3.2).toFixed(3);
+      heroStage.style.transform = `translate3d(0, ${(-cssP * 24).toFixed(2)}vh, 0)`;
       lastCssP = cssP;
     }
     requestAnimationFrame(frame);
