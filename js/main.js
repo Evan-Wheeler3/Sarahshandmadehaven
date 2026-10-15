@@ -4,7 +4,7 @@
   'use strict';
 
   // ✏️ Sarah's Instagram username (without the @). Every Instagram link on the page uses this.
-  const INSTAGRAM = '_sarahshandmadehaven_';
+  const INSTAGRAM = '__sarahshandmadehaven__';
 
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
