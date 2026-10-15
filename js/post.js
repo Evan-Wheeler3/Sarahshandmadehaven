@@ -132,16 +132,24 @@
     return { root, far, near, tail, legs, head, neck, lid };
   }
 
+  // The powerful downstroke takes longer than the quick recovery upstroke.
+  function strokePhase(ph) {
+    const d = 0.58;
+    return ph < d ? (0.5 * ph) / d : 0.5 + (0.5 * (ph - d)) / (1 - d);
+  }
+
   function wingPose(P) {
-    const s = Math.sin(TAU * P.ph), c = Math.cos(TAU * P.ph);
-    const up = Math.max(0, -s); // strength of the upstroke
+    const q = strokePhase(P.ph);
+    const s = Math.sin(TAU * q), c = Math.cos(TAU * q);
+    const up0 = Math.max(0, -s);
+    const up = up0 * up0 * (3 - 2 * up0);           // eased strength of the upstroke
     const a = P.amp;
-    let h = lerp(0.55, 0.12 + 0.86 * c, a);       // how far the wing is raised (projected)
+    let h = lerp(0.55, 0.1 + 0.9 * c, a);           // how far the wing is raised (projected)
     h = lerp(h, 0.5 + 0.48 * c, P.hLift || 0);      // braking: beats stay high
-    let sweep = P.sweepBase - 16 * s * a;           // forward on the downstroke
-    let fold = P.foldBase + 58 * up * a;            // wrist folds back on the upstroke
-    let spread = 1 - 0.55 * up * a;
-    let secA = 104 - 25 * up * a;
+    let sweep = P.sweepBase - 18 * s * a;           // forward on the downstroke
+    let fold = P.foldBase + 64 * up * a;            // wrist folds back on the upstroke
+    let spread = 1 - 0.62 * up * a;                 // feathers fan on the way down, close on the way up
+    let secA = 104 - 26 * up * a;
     const t = P.tuck;                               // blend toward folded at rest
     h = lerp(h, 1, t);
     sweep = lerp(sweep, 98, t);
@@ -154,9 +162,8 @@
   function poseWing(w, p, kind) {
     const far = kind === 'far';
     const k = far ? 0.9 : 1;
-    // never let a wing collapse to a hairline when it points at the viewer
     let h = p.h * k;
-    if (Math.abs(h) < 0.16) h = h < 0 ? -0.16 : 0.16;
+    if (Math.abs(h) < 0.035) h = h < 0 ? -0.035 : 0.035;
     const sx = SHOULDER[0] + (far ? 10 : 0), sy = SHOULDER[1] - (far ? 6 : 0);
     w.g.setAttribute('transform', `translate(${sx} ${sy}) scale(${k} ${f3(h)}) rotate(${f1(p.sweep)})`);
     const under = h < 0;
@@ -201,14 +208,23 @@
 
   function buildScroll(parent) {
     const g = el('g', { class: 'sc' }, parent);
+    // the paper darkening as it curls into the roll (only while rolling)
+    const lip = el('rect', { fill: 'url(#sc-lip)', opacity: 0 }, g);
     const body = el('rect', { fill: 'url(#sc-body)' }, g);
-    const skin = el('g', null, g);
+    const clip = el('clipPath', { id: 'sc-clip' }, g);
+    const clipRect = el('rect', null, clip);
+    const skinWrap = el('g', { 'clip-path': 'url(#sc-clip)' }, g);
+    const skin = el('g', null, skinWrap);
+    // faint lines of writing on the paper, three bands deep so they can turn with the roll
     const inkRnd = (window.HavenStone && window.HavenStone.mulberry32(9)) || Math.random;
-    for (let i = 0; i < 16; i++) {
-      const x = -92 + inkRnd() * 170, y = -14 + inkRnd() * 28, w = 6 + inkRnd() * 22;
-      el('path', { d: `M${f1(x)} ${f1(y)}h${f1(w)}`, class: 'sc-ink' }, skin);
+    for (let band = -1; band <= 1; band++) {
+      for (let i = 0; i < 14; i++) {
+        const x = -92 + inkRnd() * 170, y = -14 + inkRnd() * 28 + band * 44, w = 6 + inkRnd() * 22;
+        el('path', { d: `M${f1(x)} ${f1(y)}h${f1(w)}`, class: 'sc-ink' }, skin);
+      }
     }
     el('path', { d: 'M-100 -9C-50 -11 50 -6 100 -10', class: 'sc-edge' }, skin);
+    const shine = el('rect', { fill: 'url(#sc-shine)' }, g);
     const ends = [-1, 1].map(() => {
       const e = el('g', null, g);
       el('ellipse', { cx: 0, cy: 0, rx: 0.36, ry: 1, class: 'sc-cap' }, e);
@@ -230,7 +246,7 @@
     el('circle', { r: 11.5, cy: 0.9, fill: 'none', stroke: 'rgba(255,190,170,.35)', 'stroke-width': 0.8 }, emboss);
     el('text', { y: 6.2, 'text-anchor': 'middle', class: 'sc-mono sc-mono--hi' }, emboss).textContent = 'S';
     el('text', { y: 5.4, 'text-anchor': 'middle', class: 'sc-mono' }, emboss).textContent = 'S';
-    return { g, body, skin, ends, twine, wraps, tails, wax, drips, blob, emboss };
+    return { g, lip, body, clipRect, skin, shine, ends, twine, wraps, tails, wax, drips, blob, emboss };
   }
 
   function spiralD() {
@@ -272,6 +288,14 @@
       <linearGradient id="sc-body" x1="0" y1="0" x2="0" y2="1">
         <stop offset="0" stop-color="#a98d5f"/><stop offset=".16" stop-color="#e2d2ae"/><stop offset=".4" stop-color="#fffaf0"/>
         <stop offset=".6" stop-color="#f1e4c7"/><stop offset=".86" stop-color="#c4a879"/><stop offset="1" stop-color="#977b50"/>
+      </linearGradient>
+      <linearGradient id="sc-lip" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#46301a" stop-opacity="0"/><stop offset=".55" stop-color="#46301a" stop-opacity=".14"/>
+        <stop offset=".75" stop-color="#46301a" stop-opacity=".32"/><stop offset=".76" stop-color="#46301a" stop-opacity="0"/>
+      </linearGradient>
+      <linearGradient id="sc-shine" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".3" stop-color="#fff" stop-opacity=".35"/>
+        <stop offset=".38" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity="0"/>
       </linearGradient>
       <radialGradient id="sc-wax" cx=".36" cy=".3" r=".8">
         <stop offset="0" stop-color="#e08870"/><stop offset=".45" stop-color="#a94f3b"/><stop offset="1" stop-color="#5e2218"/>
@@ -322,7 +346,7 @@
 
     // ---- actors ----
     const S = {
-      x: 0, y: 0, len: 200, T: 34, rot: 0, s: 1, squash: 0, visible: false,
+      x: 0, y: 0, len: 200, T: 34, rot: 0, s: 1, squash: 0, visible: false, spin: 0, lip: 0,
       carried: false, theta: 0, omega: 0, swing: 0, tie: 0, tails: 0, wax: 0, emboss: 0, drip: 0
     };
     const scroll = buildScroll(layer);
@@ -352,7 +376,7 @@
     function renderPigeon() {
       if (!P.visible) return;
       P.ph = (P.ph + dt * P.freq) % 1;
-      P.bob = -P.amp * (1 - P.tuck) * 5 * Math.sin(TAU * (P.ph - 0.12)) + P.crouch * 9;
+      P.bob = -P.amp * (1 - P.tuck) * 6 * Math.sin(TAU * (strokePhase(P.ph) - 0.12)) + P.crouch * 9;
       pig.root.setAttribute('transform', `translate(${f1(P.x)} ${f1(P.y)}) rotate(${f1(P.pitch)}) scale(${f3(P.s)}) translate(0 ${f1(P.bob)})`);
       const wp = wingPose(P);
       poseWing(pig.near, wp, 'near');
@@ -398,12 +422,22 @@
       S.swing += (S.theta * 1.6 - S.swing) * Math.min(1, dt * 6);
       const T = S.T, L = S.len;
       scroll.g.setAttribute('transform', `translate(${f1(S.x)} ${f1(S.y)}) rotate(${f1(S.rot)}) scale(${f3(S.s * (1 + S.squash * 0.06))} ${f3(S.s * (1 - S.squash * 0.08))})`);
-      scroll.body.setAttribute('x', f1(-L / 2));
-      scroll.body.setAttribute('y', f1(-T / 2));
-      scroll.body.setAttribute('width', f1(L));
-      scroll.body.setAttribute('height', f1(T));
-      scroll.body.setAttribute('rx', f1(T * 0.14));
-      scroll.skin.setAttribute('transform', `scale(${f3(L / 200)} ${f3(T / 44)})`);
+      for (const r of [scroll.body, scroll.clipRect, scroll.shine]) {
+        r.setAttribute('x', f1(-L / 2));
+        r.setAttribute('y', f1(-T / 2));
+        r.setAttribute('width', f1(L));
+        r.setAttribute('height', f1(T));
+        r.setAttribute('rx', f1(T * 0.14));
+      }
+      const spin = ((S.spin % 44) + 44) % 44 - 22;
+      scroll.skin.setAttribute('transform', `scale(${f3(L / 200)} ${f3(T / 44)}) translate(0 ${f1(-spin)})`);
+      scroll.lip.setAttribute('opacity', f3(S.lip));
+      if (S.lip > 0.01) {
+        scroll.lip.setAttribute('x', f1(-L / 2 + T * 0.35));
+        scroll.lip.setAttribute('width', f1(Math.max(0, L - T * 0.7)));
+        scroll.lip.setAttribute('y', f1(-T / 2 - T * 0.9));
+        scroll.lip.setAttribute('height', f1(T * 1.2));
+      }
       scroll.ends[0].setAttribute('transform', `translate(${f1(-L / 2)} 0) scale(${f1(T / 2)})`);
       scroll.ends[1].setAttribute('transform', `translate(${f1(L / 2)} 0) scale(${f1(T / 2)})`);
       const k = T / 44;
@@ -494,7 +528,6 @@
       clearTimeout(skipHint);
       tasks.splice(0).forEach((k) => k.resolve());
       stage.remove();
-      document.querySelectorAll('.post-roll').forEach((n) => n.remove());
       form.style.clipPath = 'inset(0 0 100% 0)';
     }
 
@@ -506,37 +539,29 @@
       const top0 = r0.top + window.scrollY, bottom0 = r0.bottom + window.scrollY;
       const left0 = r0.left + window.scrollX, width0 = r0.width;
       const rollStart = window.scrollY;
-      const roll = document.createElement('div');
-      roll.className = 'post-roll';
-      roll.innerHTML = '<span class="post-roll__lip"></span><span class="post-roll__skin"></span><span class="post-roll__shade"></span>';
-      document.body.appendChild(roll);
-      const skin = roll.querySelector('.post-roll__skin');
-      const h0 = 14, h1 = 36;
+      Object.assign(S, { visible: true, len: width0, T: 14, lip: 1, spin: 0 });
+      scroll.g.style.display = '';
       const place = (e) => {
         const y = bottom0 - (bottom0 - top0) * e;
-        const h = h0 + (h1 - h0) * Math.sqrt(e);
         form.style.clipPath = `inset(0 0 ${(e * 100).toFixed(2)}% 0)`;
-        Object.assign(roll.style, {
-          left: `${left0}px`, width: `${width0}px`, top: `${y - h / 2}px`, height: `${h}px`, fontSize: `${h}px`
-        });
-        skin.style.backgroundPosition = `0 ${f1(-(bottom0 - y) * 0.8)}px, 0 0`;
         const want = Math.min(rollStart, y - vh * 0.55);
         if (want < window.scrollY) window.scrollTo({ top: Math.max(0, want), behavior: 'instant' });
+        S.T = lerp(14, 36, Math.sqrt(e));
+        S.x = left0 + width0 / 2 - window.scrollX;
+        S.y = y - window.scrollY;
+        S.spin = (bottom0 - y) * 0.55;   // the paper's surface turns as it rolls
       };
       place(0);
-      await anim(narrow ? 1900 : 1600, (t) => place(ease.inOutQ(t)));
+      await anim(narrow ? 1350 : 1150, (t) => place(ease.inOutQ(t)));
       if (aborted) return;
 
       /* 2. it lifts off the wall, shrinks into a scroll and floats to the middle */
-      const rr = roll.getBoundingClientRect();
-      roll.remove();
-      Object.assign(S, { x: rr.left + rr.width / 2, y: rr.top + rr.height / 2, len: rr.width, T: rr.height, visible: true });
-      scroll.g.style.display = '';
       const cx = vw / 2, cy = vh * (narrow ? 0.64 : 0.62);
       const L1 = narrow ? 170 : 220, T1 = narrow ? 40 : 46;
       const from = { x: S.x, y: S.y, len: S.len, T: S.T };
-      await anim(1000, (t) => {
+      await anim(700, (t) => {
         const e = ease.inOut(t);
+        S.lip = 1 - ease.out(Math.min(1, t * 3));
         S.len = lerp(from.len, L1, ease.out(Math.min(1, t * 1.3)));
         S.T = lerp(from.T, T1, e);
         S.x = lerp(from.x, cx, e);
@@ -544,24 +569,24 @@
         S.rot = Math.sin(t * Math.PI * 2) * 7 * (1 - t);
       });
       S.rot = 0;
-      await anim(260, (t) => { S.squash = bump(t) * 0.6; });
+      await anim(160, (t) => { S.squash = bump(t) * 0.6; });
 
       /* 3. twine wraps round it */
-      await anim(620, (t) => { S.tie = ease.inOut(t); });
-      await anim(260, (t) => { S.tails = ease.outBack(t); });
+      await anim(420, (t) => { S.tie = ease.inOut(t); });
+      await anim(180, (t) => { S.tails = ease.outBack(t); });
 
       /* 4. a blob of wax, then the brass seal stamp presses into it */
-      await anim(320, (t) => { S.wax = ease.outBack(t); S.drip = ease.out(seg(t, 0.4, 1)); });
+      await anim(240, (t) => { S.wax = ease.outBack(t); S.drip = ease.out(seg(t, 0.4, 1)); });
       const sealY = S.y;
       stamp.setAttribute('opacity', 1);
       const stampSize = narrow ? 1.25 : 1.6;
       const stampAt = (y, sc, rot) => stamp.setAttribute('transform', `translate(${f1(cx)} ${f1(y)}) rotate(${f1(rot)}) scale(${f3(sc * stampSize)})`);
-      await anim(420, (t) => {
+      await anim(300, (t) => {
         const e = ease.in(t);
         stampAt(lerp(sealY - 190, sealY + 2, e), lerp(1.35, 0.95, e) * (narrow ? 0.85 : 1), lerp(-14, 0, e));
         stamp.setAttribute('opacity', f3(Math.min(1, t * 3)));
       });
-      await anim(160, (t) => { S.squash = ease.out(t); stampAt(sealY + 2 + 3 * t, 0.95 * (narrow ? 0.85 : 1), 0); });
+      await anim(110, (t) => { S.squash = ease.out(t); stampAt(sealY + 2 + 3 * t, 0.95 * (narrow ? 0.85 : 1), 0); });
       S.emboss = 1;
       for (let i = 0; i < 12; i++) {
         const a = (i / 12) * TAU + Math.random() * 0.3;
@@ -571,13 +596,13 @@
       for (let i = 0; i < 5; i++) {
         spawn('speck', cx + (Math.random() - 0.5) * 20, sealY, { vx: (Math.random() - 0.5) * 260, vy: -120 - Math.random() * 160, max: 0.7 });
       }
-      await anim(420, (t) => {
+      await anim(300, (t) => {
         const e = ease.out(t);
         S.squash = 1 - ease.out(t) * 0.75;
         stampAt(lerp(sealY + 5, sealY - 210, e), lerp(0.95, 1.4, e) * (narrow ? 0.85 : 1), lerp(0, 10, e));
         stamp.setAttribute('opacity', f3(1 - seg(t, 0.5, 1)));
       });
-      await anim(240, (t) => { S.squash = 0.25 * (1 - t); });
+      await anim(120, (t) => { S.squash = 0.25 * (1 - t); });
       if (aborted) return;
 
       /* 5. the pigeon swoops in from the upper right and lands on the scroll */
@@ -586,10 +611,10 @@
       const tx = cx - 6 * s, ty = cy - T / 2 - 55 * s;
       const P0 = [vw + 240 * s, vh * 0.1], P1 = [vw * 0.86, vh * 0.78];
       const P2 = [tx + 260 * s, ty + 30], P3 = [tx, ty - 34];
-      Object.assign(P, { visible: true, x: P0[0], y: P0[1], s: s * 0.45, ph: 0.1, freq: 6.5, amp: 1, tuck: 0, ext: 0, grip: 1, lift: 1 });
+      Object.assign(P, { visible: true, x: P0[0], y: P0[1], s: s * 0.45, ph: 0.1, freq: 5, amp: 1, tuck: 0, ext: 0, grip: 1, lift: 1 });
       pig.root.style.display = '';
       let prev = P0.slice();
-      await anim(2300, (t) => {
+      await anim(1600, (t) => {
         const u = 1 - Math.pow(1 - t, 2.1);
         const [x, y] = bezier(P0, P1, P2, P3, u);
         const vx = x - prev[0], vy = y - prev[1];
@@ -602,7 +627,7 @@
         P.pitch = lerp(velPitch, 26, flare);
         const glide = bump(seg(t, 0.3, 0.7));
         P.amp = lerp(1, 0.12, glide);
-        P.freq = lerp(lerp(6.5, 4.5, glide), 9, flare);
+        P.freq = lerp(lerp(5, 3.8, glide), 6.4, flare);
         P.sweepBase = -10 * flare;
         P.hLift = 0.75 * flare;
         P.tailFan = flare;
@@ -613,12 +638,12 @@
       });
       // touchdown
       for (let i = 0; i < 2; i++) spawn('down', P.x + 20 * s, P.y + 20 * s, { vx: 60 + Math.random() * 40, vy: -40, max: 2.6, scale: s * 0.8 });
-      await anim(560, (t) => {
+      await anim(440, (t) => {
         P.y = lerp(ty - 34, ty, ease.out(seg(t, 0, 0.45)));
         P.crouch = bump(seg(t, 0.25, 1)) * 0.9;
         P.pitch = lerp(26, 0, ease.out(seg(t, 0.2, 0.8)));
         P.amp = 1 - ease.out(seg(t, 0, 0.45));
-        P.freq = lerp(9, 4, t);
+        P.freq = lerp(6.4, 4, t);
         P.tuck = ease.inOut(seg(t, 0.3, 1));
         P.sweepBase = lerp(-10, 0, t);
         P.hLift = lerp(0.75, 0, seg(t, 0, 0.4));
@@ -631,30 +656,27 @@
       });
       P.amp = 0;
 
-      /* 6. a moment on the scroll: looks about, blinks, coos */
-      await anim(1700, (t) => {
-        const bob1 = bump(seg(t, 0.02, 0.16)), bob2 = bump(seg(t, 0.16, 0.3));
-        P.hx = -7 * bob1 - 6 * bob2;
-        P.hy = 2 * (bob1 + bob2);
-        P.tilt = -12 * ease.sine(seg(t, 0.3, 0.45)) * (1 - ease.sine(seg(t, 0.62, 0.75))) + 6 * bump(seg(t, 0.78, 0.98));
-        P.blink = bump(seg(t, 0.4, 0.47)) + bump(seg(t, 0.88, 0.95));
-        P.puff = bump(seg(t, 0.5, 0.72));
-        P.crouch = 0.25 * bump(seg(t, 0.5, 0.72));
-        P.tailFan = 0.2 + 0.5 * bump(seg(t, 0.55, 0.68));
-        P.tuck = 1 - 0.12 * bump(seg(t, 0.82, 0.96));
+      /* 6. a brief pause on the scroll: a head bob, a glance and a blink */
+      await anim(650, (t) => {
+        const bob = bump(seg(t, 0.02, 0.38));
+        P.hx = -7 * bob;
+        P.hy = 2 * bob;
+        P.tilt = -10 * bump(seg(t, 0.32, 0.98));
+        P.blink = bump(seg(t, 0.55, 0.68));
+        P.tailFan = 0.2 + 0.4 * bump(seg(t, 0.4, 0.6));
       });
 
       /* 7. crouch, raise the wings, and leap away carrying the scroll */
-      await anim(300, (t) => {
+      await anim(200, (t) => {
         P.crouch = ease.out(t);
         P.pitch = 8 * ease.out(t);
         P.hy = 4 * t;
         P.tuck = 1 - 0.3 * t;
       });
       P.ph = 0; P.freq = 0; P.amp = 1;
-      await anim(200, (t) => { P.tuck = 0.7 * (1 - ease.out(t)); P.tailFan = 0.6 * t; });
+      await anim(150, (t) => { P.tuck = 0.7 * (1 - ease.out(t)); P.tailFan = 0.6 * t; });
       P.tuck = 0;
-      P.freq = 8.5;
+      P.freq = 6.6;
       S.carried = true; lastFoot = null; lastFootV = [0, 0]; S.theta = 0; S.omega = 0;
       for (let i = 0; i < 5; i++) {
         spawn('down', P.x + (Math.random() * 60 - 10) * s, P.y + (Math.random() * 30 + 10) * s, {
@@ -664,7 +686,7 @@
       const L0 = [P.x, P.y];
       const Q1 = [P.x - 60 * s, P.y - 190 * s], Q2 = [vw * 0.4, vh * 0.2], Q3 = [-380 * s, vh * 0.04];
       prev = L0.slice();
-      await anim(3000, (t) => {
+      await anim(2000, (t) => {
         const u = Math.pow(t, 1.45);
         const [x, y] = bezier(L0, Q1, Q2, Q3, u);
         const vx = x - prev[0], vy = y - prev[1];
@@ -675,7 +697,7 @@
         P.pitch = lerp(8, velPitch, ease.out(seg(t, 0, 0.25)));
         P.crouch = 1 - ease.out(seg(t, 0, 0.12));
         P.hy = 4 * (1 - seg(t, 0, 0.2));
-        P.freq = lerp(8.5, 6, seg(t, 0.3, 1));
+        P.freq = lerp(6.6, 5, seg(t, 0.3, 1));
         P.tailFan = lerp(0.6, 0.1, seg(t, 0.1, 0.5));
         P.tailTilt = lerp(-8, 0, seg(t, 0, 0.5));
         P.s = s * lerp(1, 0.42, ease.inOut(seg(t, 0.2, 1)));

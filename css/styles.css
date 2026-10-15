@@ -746,61 +746,6 @@ main {
 
 /* the send animation (js/post.js) */
 
-.post-roll {
-  position: absolute;
-  z-index: 30;
-  border-radius: 999px;
-  background: linear-gradient(to bottom, #b39867 0%, #e9dcbc 18%, #fffaf0 40%, #f1e4c7 62%, #c7ab7c 86%, #9a7f55 100%);
-  box-shadow: 0 10px 16px -6px rgba(40, 25, 10, 0.5);
-  pointer-events: none;
-}
-/* the paper's spiral showing at each end */
-.post-roll::before,
-.post-roll::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 0.42em;
-  border-radius: 50%;
-  background: repeating-radial-gradient(circle at 50% 50%, #f6ead2 0 0.06em, #bea171 0.06em 0.09em);
-  box-shadow: inset 0 0 0 1px rgba(120, 90, 50, 0.3);
-}
-.post-roll::before { left: -0.14em; }
-.post-roll::after { right: -0.14em; }
-/* faint lines of writing turning on the roll's surface */
-.post-roll__skin {
-  position: absolute;
-  inset: 12% 3%;
-  border-radius: 999px;
-  background:
-    repeating-linear-gradient(to bottom, transparent 0 7px, rgba(38, 63, 110, 0.16) 7px 8.5px),
-    linear-gradient(to bottom, rgba(0, 0, 0, 0.12), transparent 35%, transparent 65%, rgba(0, 0, 0, 0.12));
-  -webkit-mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
-  mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
-}
-/* the paper darkening as it bends into the roll */
-.post-roll__lip {
-  position: absolute;
-  left: 0.2em;
-  right: 0.2em;
-  bottom: 50%;
-  height: 1.2em;
-  background: linear-gradient(to bottom, transparent, rgba(70, 45, 20, 0.14) 55%, rgba(70, 45, 20, 0.3));
-  pointer-events: none;
-}
-/* and the roll's shadow on the wall below it */
-.post-roll__shade {
-  position: absolute;
-  left: 2%;
-  right: 2%;
-  top: 70%;
-  height: 1.3em;
-  border-radius: 50%;
-  background: radial-gradient(ellipse at 50% 0%, rgba(20, 10, 5, 0.35), transparent 70%);
-  z-index: -1;
-}
-
 .post-stage {
   position: fixed;
   inset: 0;
