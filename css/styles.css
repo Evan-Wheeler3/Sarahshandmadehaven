@@ -94,12 +94,13 @@ p { margin: 0 0 1.1em; }
 #ivy.is-growing { opacity: 1; }
 #ivy .vine {
   fill: none;
-  stroke: #4a4a26;
-  stroke-width: 3.2;
+  stroke: #45491f;
+  stroke-width: 4.2;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-#ivy .vine--twig { stroke-width: 1.9; stroke: #56582c; }
+#ivy .vine--twig { stroke-width: 2.5; stroke: #50552a; }
+#ivy .vines { filter: drop-shadow(1px 2px 1.5px rgba(20, 12, 5, 0.35)); }
 #ivy .leaf__in {
   transform: scale(0);
   transition: transform 0.55s cubic-bezier(0.3, 1.6, 0.5, 1);

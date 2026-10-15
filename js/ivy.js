@@ -9,8 +9,8 @@
 
   const NS = 'http://www.w3.org/2000/svg';
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
-  const GREENS = ['#3f6a2e', '#4f7a35', '#5b8a3c', '#466f2f', '#6a9746', '#365c27'];
-  const PETALS = ['#f7f0e3', '#f2c6c3', '#e8a8b6', '#cdb9e6', '#f6d97e', '#f7f0e3'];
+  const GREENS = ['#3e6e2c', '#4f8034', '#5f933d', '#47752f', '#6fa548', '#356126'];
+  const PETALS = ['#fbf5ea', '#f4bdb8', '#ea9aae', '#c9b0ea', '#f8d66a', '#fbf5ea'];
 
   let vines = [];
   let lastW = 0;
@@ -105,11 +105,11 @@
 
     // leaves along the vine, alternating sides
     let acc = 0, next = 6 + rnd() * 10, side = rnd() < 0.5 ? 1 : -1;
-    let untilFlower = 4 + Math.floor(rnd() * 4);
+    let untilFlower = 3 + Math.floor(rnd() * 3);
     for (let i = 1; i < pts.length - 1; i++) {
       acc += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
       if (acc < next) continue;
-      next = acc + 19 + rnd() * 20;
+      next = acc + 16 + rnd() * 16;
       const tx = pts[i + 1][0] - pts[i - 1][0], ty = pts[i + 1][1] - pts[i - 1][1];
       const phi = Math.atan2(ty, tx) + side * (0.8 + rnd() * 0.7);
       side = -side;
@@ -124,14 +124,14 @@
 
       // every few leaves, a little blossom tucked against the vine
       if (--untilFlower <= 0) {
-        untilFlower = 5 + Math.floor(rnd() * 5);
+        untilFlower = 3 + Math.floor(rnd() * 4);
         const n = rnd() < 0.3 ? 2 + Math.floor(rnd() * 2) : 1;
         const nx = -ty, ny = tx, nm = Math.hypot(nx, ny) || 1;
         for (let k = 0; k < n; k++) {
           const off = -side * (3 + rnd() * 5);
           const fx = pts[i][0] + (nx / nm) * off + (rnd() - 0.5) * 8 * k;
           const fy = pts[i][1] + (ny / nm) * off + (rnd() - 0.5) * 8 * k;
-          const fs = (0.65 + rnd() * 0.5) * leafScale * (k ? 0.75 : 1);
+          const fs = (0.9 + rnd() * 0.6) * leafScale * (k ? 0.75 : 1);
           const fg = el('g', {
             class: 'flower',
             transform: `translate(${fx.toFixed(1)} ${fy.toFixed(1)}) rotate(${(rnd() * 72).toFixed(0)}) scale(${fs.toFixed(2)})`
@@ -175,7 +175,7 @@
 
     const rnd = window.HavenStone.mulberry32(20240607);
     const band = clamp(vw * 0.17, 60, 300);
-    const leafScale = vw < 700 ? 0.8 : 1.05;
+    const leafScale = vw < 700 ? 0.95 : 1.3;
     const ctx = { rnd, band, vw, vh, gVines, gLeaves, gFlowers, leafScale };
 
     const specs = [
