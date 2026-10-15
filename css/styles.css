@@ -815,77 +815,141 @@ main {
   cursor: pointer;
 }
 
-/* the rolled-up letter and the pigeon that carries it off */
+/* the send animation (js/post.js) */
 
 .post-roll {
   position: absolute;
   z-index: 30;
   border-radius: 999px;
-  background: linear-gradient(to bottom, #c9b48a 0%, #f2e6cc 22%, #fffaf0 42%, #efe2c6 64%, #c4a87a 88%, #a98d62 100%);
-  box-shadow: 0 8px 14px -4px rgba(40, 25, 10, 0.45);
+  background: linear-gradient(to bottom, #b39867 0%, #e9dcbc 18%, #fffaf0 40%, #f1e4c7 62%, #c7ab7c 86%, #9a7f55 100%);
+  box-shadow: 0 10px 16px -6px rgba(40, 25, 10, 0.5);
   pointer-events: none;
 }
+/* the paper's spiral showing at each end */
 .post-roll::before,
 .post-roll::after {
   content: "";
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 0.5em;
+  width: 0.42em;
   border-radius: 50%;
-  background: repeating-radial-gradient(circle at 50% 50%, #f4e8cf 0 2px, #c2a77a 2px 3px);
-  font-size: 34px;
+  background: repeating-radial-gradient(circle at 50% 50%, #f6ead2 0 0.06em, #bea171 0.06em 0.09em);
+  box-shadow: inset 0 0 0 1px rgba(120, 90, 50, 0.3);
 }
-.post-roll::before { left: -0.12em; }
-.post-roll::after { right: -0.12em; }
-.post-roll__tie {
+.post-roll::before { left: -0.14em; }
+.post-roll::after { right: -0.14em; }
+/* faint lines of writing turning on the roll's surface */
+.post-roll__skin {
   position: absolute;
-  top: -3px;
-  bottom: -3px;
-  left: 50%;
-  width: 12px;
-  margin-left: -6px;
-  border-radius: 3px;
-  background: repeating-linear-gradient(-30deg, #b2875a 0 3px, #8e6a43 3px 5px);
-  transform: scaleY(0);
+  inset: 12% 3%;
+  border-radius: 999px;
+  background:
+    repeating-linear-gradient(to bottom, transparent 0 7px, rgba(38, 63, 110, 0.16) 7px 8.5px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.12), transparent 35%, transparent 65%, rgba(0, 0, 0, 0.12));
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
+  mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
 }
-.post-roll__seal {
+/* the paper darkening as it bends into the roll */
+.post-roll__lip {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 26px;
-  height: 25px;
-  margin: -12px 0 0 -13px;
-  border-radius: 52% 46% 50% 48%;
-  background: radial-gradient(circle at 36% 30%, #d47c66, #a4523f 45%, #6c2a1e 100%);
-  box-shadow: inset 0 0 0 3px rgba(0, 0, 0, 0.12), 0 2px 3px rgba(60, 20, 10, 0.45);
-  transform: scale(0);
-}
-
-.courier {
-  position: absolute;
-  z-index: 31;
-  width: 200px;
+  left: 0.2em;
+  right: 0.2em;
+  bottom: 50%;
+  height: 1.2em;
+  background: linear-gradient(to bottom, transparent, rgba(70, 45, 20, 0.14) 55%, rgba(70, 45, 20, 0.3));
   pointer-events: none;
 }
-.courier svg { position: relative; z-index: 1; }
-.courier .post-roll { z-index: 0; }
-.courier svg { display: block; width: 100%; height: auto; overflow: visible; }
-.courier .wing {
-  transform-box: view-box;
-  transform-origin: 72px 54px;
-  animation: flap 0.24s ease-in-out infinite alternate;
-}
-.courier .wing--far { animation-delay: -0.06s; opacity: 0.9; }
-.courier.is-taking-off .wing { animation-duration: 0.15s; }
-@keyframes flap {
-  from { transform: rotate(-12deg); }
-  to { transform: rotate(62deg); }
+/* and the roll's shadow on the wall below it */
+.post-roll__shade {
+  position: absolute;
+  left: 2%;
+  right: 2%;
+  top: 70%;
+  height: 1.3em;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 0%, rgba(20, 10, 5, 0.35), transparent 70%);
+  z-index: -1;
 }
 
-.feather {
-  position: absolute;
-  z-index: 29;
-  width: 22px;
-  pointer-events: none;
+.post-stage {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
+.post-stage svg {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+}
+.post-skip {
+  position: absolute;
+  left: 50%;
+  bottom: max(18px, env(safe-area-inset-bottom));
+  margin: 0;
+  padding: 0.3em 0.9em;
+  border-radius: 999px;
+  background: rgba(251, 243, 226, 0.8);
+  color: var(--ink-soft);
+  font: 1.15rem var(--font-hand);
+  transform: translate(-50%, 8px);
+  opacity: 0;
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+.post-stage.show-skip .post-skip { opacity: 1; transform: translate(-50%, 0); }
+
+/* pigeon */
+.pg-wing { --cov: #c4cbd7; --sec: #a8b0bf; --prim: #959eae; --tip: #474d59; --bar: #2b2f37; }
+.pg-wing.is-under { --cov: #dfe3ea; --sec: #d0d5de; --prim: #c6ccd6; --tip: #8a909c; --bar: #a7adb7; }
+.pg-wing--far { --cov: #a1a9b7; --sec: #8b93a2; --prim: #7d8695; --tip: #3a3f49; --bar: #24272e; }
+.pg-wing--far.is-under { --cov: #b9bfc9; --sec: #aab0bb; --prim: #a0a7b2; --tip: #6c727d; --bar: #80858f; }
+.pg .f-cov { fill: var(--cov); }
+.pg .f-sec { fill: var(--sec); }
+.pg .f-prim { fill: var(--prim); }
+.pg .f-tip { fill: var(--tip); }
+.pg .f-bar { fill: var(--bar); }
+.pg .f-cov,
+.pg .f-sec,
+.pg .f-prim,
+.pg .pg-outline,
+.pg .f-tail {
+  stroke: rgba(32, 36, 48, 0.32);
+  stroke-width: 0.9;
+  stroke-linejoin: round;
+}
+.pg .f-rachis { fill: none; stroke: rgba(255, 255, 255, 0.28); stroke-width: 0.8; }
+.pg .f-detail { fill: none; stroke: rgba(60, 66, 82, 0.28); stroke-width: 1.2; stroke-linecap: round; }
+.pg .f-tail { fill: #8c95a6; }
+.pg .f-tailtip { fill: #3b404b; }
+.pg .pg-leg {
+  fill: none;
+  stroke: #c86e64;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* scroll, twine, wax and the seal stamp */
+.sc .sc-ink { stroke: rgba(38, 63, 110, 0.18); stroke-width: 1.4; stroke-linecap: round; }
+.sc .sc-edge { fill: none; stroke: rgba(120, 90, 50, 0.4); stroke-width: 1; }
+.sc .sc-cap { fill: #f3e6cb; stroke: rgba(120, 90, 50, 0.45); stroke-width: 0.04; }
+.sc .sc-spiral { fill: none; stroke: #b39466; stroke-width: 0.05; }
+.sc .sc-twine {
+  fill: none;
+  stroke: #9c7448;
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+.sc .sc-twine--tail { stroke-width: 2.4; }
+.sc .sc-mono {
+  font-family: var(--font-display);
+  font-size: 17px;
+  fill: rgba(70, 15, 8, 0.55);
+}
+.sc .sc-mono--hi { fill: rgba(255, 190, 170, 0.4); }
+
+.post-fx .fx-spark { fill: #fff3d0; }
+.post-fx .fx-speck { fill: #a4523f; }
+.post-fx .fx-down { fill: #eef1f5; stroke: #b6bdc9; stroke-width: 0.6; }
