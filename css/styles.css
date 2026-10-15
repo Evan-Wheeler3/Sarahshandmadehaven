@@ -775,10 +775,10 @@ main {
 .post-stage.show-skip .post-skip { opacity: 1; transform: translate(-50%, 0); }
 
 /* pigeon */
-.pg-wing { --cov: #c4cbd7; --sec: #a8b0bf; --prim: #959eae; --tip: #474d59; --bar: #2b2f37; }
-.pg-wing.is-under { --cov: #dfe3ea; --sec: #d0d5de; --prim: #c6ccd6; --tip: #8a909c; --bar: #a7adb7; }
-.pg-wing--far { --cov: #a1a9b7; --sec: #8b93a2; --prim: #7d8695; --tip: #3a3f49; --bar: #24272e; }
-.pg-wing--far.is-under { --cov: #b9bfc9; --sec: #aab0bb; --prim: #a0a7b2; --tip: #6c727d; --bar: #80858f; }
+.pg-wing { --cov: #c4cbd7; --sec: #a8b0bf; --prim: #959eae; --tip: #474d59; --bar: #2b2f37; --edge: #8a93a4; }
+.pg-wing.is-under { --cov: #cbd1db; --sec: #c0c7d2; --prim: #b8bfcb; --tip: #7e8592; --bar: #a2a8b3; --edge: #9aa2b1; }
+.pg-wing--far { --cov: #a1a9b7; --sec: #8b93a2; --prim: #7d8695; --tip: #3a3f49; --bar: #24272e; --edge: #6f7889; }
+.pg-wing--far.is-under { --cov: #b3bac5; --sec: #a5acb8; --prim: #9aa1ad; --tip: #666c78; --bar: #7d838d; --edge: #858d9c; }
 .pg .f-cov { fill: var(--cov); }
 .pg .f-sec { fill: var(--sec); }
 .pg .f-prim { fill: var(--prim); }
@@ -794,6 +794,13 @@ main {
   stroke-linejoin: round;
 }
 .pg .f-rachis { fill: none; stroke: rgba(255, 255, 255, 0.28); stroke-width: 0.8; }
+.pg .f-edge {
+  fill: none;
+  stroke: var(--edge);
+  stroke-width: 4.5;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
 .pg .f-detail { fill: none; stroke: rgba(60, 66, 82, 0.28); stroke-width: 1.2; stroke-linecap: round; }
 .pg .f-tail { fill: #8c95a6; }
 .pg .f-tailtip { fill: #3b404b; }

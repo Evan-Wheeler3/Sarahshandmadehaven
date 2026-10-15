@@ -94,8 +94,12 @@
       prims[j] = { g: fg, base: -12 + j * 7, x: 1 + j * 0.9, y: -3 - j * 1.4 };
     }
     el('path', { d: ALULA_D, class: 'f-cov' }, hand);
+    // the rounded leading edge of the outermost feather: a wing has thickness
+    el('path', { d: `M-3 -2C-6 -30 -5 -62 -1 ${f1(-PRIM_LEN[0] * 0.98)}`, class: 'f-edge' }, prims[0].g);
     el('path', { d: ARM_D, class: 'f-cov' }, g);
     el('path', { d: ARM_DETAIL_D, class: 'f-detail' }, g);
+    // ...and of the arm, so the wing never vanishes to a hairline edge-on
+    el('path', { d: 'M-4 6C-16 -14 -16 -48 -6 -74C-2 -79 2 -80 6 -78', class: 'f-edge' }, g);
     return { g, secs, hand, prims, under: false };
   }
 
@@ -144,29 +148,43 @@
     const up0 = Math.max(0, -s);
     const up = up0 * up0 * (3 - 2 * up0);           // eased strength of the upstroke
     const a = P.amp;
-    let h = lerp(0.55, 0.1 + 0.9 * c, a);           // how far the wing is raised (projected)
-    h = lerp(h, 0.5 + 0.48 * c, P.hLift || 0);      // braking: beats stay high
+    // elevation of the wing above horizontal, in degrees: up at the top of
+    // the stroke, down at the bottom, held in a shallow V when gliding
+    const lift = (c + 1) / 2;
+    let beta = lerp(28, lerp(-48, 78, lift), a);
+    beta = lerp(beta, lerp(10, 82, lift), P.hLift || 0);   // braking: beats stay high
     let sweep = P.sweepBase - 18 * s * a;           // forward on the downstroke
     let fold = P.foldBase + 64 * up * a;            // wrist folds back on the upstroke
     let spread = 1 - 0.62 * up * a;                 // feathers fan on the way down, close on the way up
     let secA = 104 - 26 * up * a;
     const t = P.tuck;                               // blend toward folded at rest
-    h = lerp(h, 1, t);
     sweep = lerp(sweep, 98, t);
     fold = lerp(fold, 18, t);
     spread = lerp(spread, 0.1, t);
     secA = lerp(secA, 12, t);
-    return { h, sweep, fold, spread, secA };
+    return { beta, tuck: t, sweep, fold, spread, secA };
   }
 
+  // The bird is seen from the side and a little above. A wing at elevation
+  // beta points partly toward the camera (near wing) or away from it (far
+  // wing): that sets how high it appears, how big it looks, and which of its
+  // surfaces faces us.
+  const VIEW = (20 * Math.PI) / 180;
   function poseWing(w, p, kind) {
     const far = kind === 'far';
-    const k = far ? 0.9 : 1;
-    let h = p.h * k;
-    if (Math.abs(h) < 0.035) h = h < 0 ? -0.035 : 0.035;
-    const sx = SHOULDER[0] + (far ? 10 : 0), sy = SHOULDER[1] - (far ? 6 : 0);
-    w.g.setAttribute('transform', `translate(${sx} ${sy}) scale(${k} ${f3(h)}) rotate(${f1(p.sweep)})`);
-    const under = h < 0;
+    const b = (p.beta * Math.PI) / 180;
+    const toward = far ? -Math.cos(b) : Math.cos(b);           // + when the wingtip comes toward us
+    let h = Math.sin(b) * Math.cos(VIEW) - toward * Math.sin(VIEW);
+    let k = (far ? 0.86 : 1) * (1 + 0.16 * toward);
+    h = lerp(h, 1, p.tuck);
+    k = lerp(k, far ? 0.9 : 1, p.tuck);
+    let hk = h * k;
+    if (Math.abs(hk) < 0.03) hk = hk < 0 ? -0.03 : 0.03;
+    const sx = SHOULDER[0] + (far ? 14 : 0), sy = SHOULDER[1] - (far ? 8 : 0);
+    w.g.setAttribute('transform', `translate(${sx} ${sy}) scale(${f3(k)} ${f3(hk)}) rotate(${f1(p.sweep)})`);
+    // a raised near wing shows its pale underside, a lowered one its top with
+    // the wing bars; the far wing shows its top when raised
+    const under = p.tuck < 0.5 && (far ? h < 0 : h > 0.05);
     if (under !== w.under) { w.under = under; w.g.classList.toggle('is-under', under); }
     w.hand.setAttribute('transform', `translate(${WRIST[0]} ${WRIST[1]}) rotate(${f1(p.fold)})`);
     for (const pr of w.prims) pr.g.setAttribute('transform', `translate(${f1(pr.x)} ${f1(pr.y)}) rotate(${f1(pr.base * p.spread)})`);
@@ -612,7 +630,7 @@
       const tx = cx - 6 * s, ty = cy - T / 2 - 55 * s;
       const P0 = [vw + 240 * s, vh * 0.1], P1 = [vw * 0.86, vh * 0.78];
       const P2 = [tx + 260 * s, ty + 30], P3 = [tx, ty - 34];
-      Object.assign(P, { visible: true, x: P0[0], y: P0[1], s: s * 0.45, ph: 0.1, freq: 5, amp: 1, tuck: 0, ext: 0, grip: 1, lift: 1 });
+      Object.assign(P, { visible: true, x: P0[0], y: P0[1], s: s * 0.45, ph: 0.1, freq: 3.2, amp: 1, tuck: 0, ext: 0, grip: 1, lift: 1 });
       pig.root.style.display = '';
       let prev = P0.slice();
       await anim(1600, (t) => {
@@ -628,7 +646,7 @@
         P.pitch = lerp(velPitch, 26, flare);
         const glide = bump(seg(t, 0.3, 0.7));
         P.amp = lerp(1, 0.12, glide);
-        P.freq = lerp(lerp(5, 3.8, glide), 6.4, flare);
+        P.freq = lerp(lerp(3.2, 2.6, glide), 4.2, flare);
         P.sweepBase = -10 * flare;
         P.hLift = 0.75 * flare;
         P.tailFan = flare;
@@ -644,7 +662,7 @@
         P.crouch = bump(seg(t, 0.25, 1)) * 0.9;
         P.pitch = lerp(26, 0, ease.out(seg(t, 0.2, 0.8)));
         P.amp = 1 - ease.out(seg(t, 0, 0.45));
-        P.freq = lerp(6.4, 4, t);
+        P.freq = lerp(4.2, 3, t);
         P.tuck = ease.inOut(seg(t, 0.3, 1));
         P.sweepBase = lerp(-10, 0, t);
         P.hLift = lerp(0.75, 0, seg(t, 0, 0.4));
@@ -677,7 +695,7 @@
       P.ph = 0; P.freq = 0; P.amp = 1;
       await anim(150, (t) => { P.tuck = 0.7 * (1 - ease.out(t)); P.tailFan = 0.6 * t; });
       P.tuck = 0;
-      P.freq = 6.6;
+      P.freq = 4.4;
       S.carried = true; lastFoot = null; lastFootV = [0, 0]; S.theta = 0; S.omega = 0;
       for (let i = 0; i < 5; i++) {
         spawn('down', P.x + (Math.random() * 60 - 10) * s, P.y + (Math.random() * 30 + 10) * s, {
@@ -698,7 +716,7 @@
         P.pitch = lerp(8, velPitch, ease.out(seg(t, 0, 0.25)));
         P.crouch = 1 - ease.out(seg(t, 0, 0.12));
         P.hy = 4 * (1 - seg(t, 0, 0.2));
-        P.freq = lerp(6.6, 5, seg(t, 0.3, 1));
+        P.freq = lerp(4.4, 3.4, seg(t, 0.3, 1));
         P.tailFan = lerp(0.6, 0.1, seg(t, 0.1, 0.5));
         P.tailTilt = lerp(-8, 0, seg(t, 0, 0.5));
         P.s = s * lerp(1, 0.42, ease.inOut(seg(t, 0.2, 1)));
