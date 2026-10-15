@@ -24,70 +24,127 @@ const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147
 
 svg.innerHTML = `
 <defs>
-  <!-- felt: fuzzy fibre edges, a matted fibre surface, a soft puffed edge and a shadow below -->
-  <filter id="felt" x="-4%" y="-4%" width="108%" height="112%" color-interpolation-filters="sRGB">
-    <feTurbulence type="fractalNoise" baseFrequency="0.75" numOctaves="2" seed="3" result="n1"/>
-    <feDisplacementMap in="SourceGraphic" in2="n1" scale="3.2" xChannelSelector="R" yChannelSelector="G" result="fuzz"/>
-    <feTurbulence type="fractalNoise" baseFrequency="1.15" numOctaves="3" seed="8" result="n2"/>
-    <feDiffuseLighting in="n2" surfaceScale="1.1" lighting-color="#fff" result="bump"><feDistantLight azimuth="235" elevation="60"/></feDiffuseLighting>
-    <feComponentTransfer in="bump" result="bumpSoft"><feFuncR type="linear" slope=".35" intercept=".68"/><feFuncG type="linear" slope=".35" intercept=".68"/><feFuncB type="linear" slope=".35" intercept=".68"/></feComponentTransfer>
-    <feBlend in="fuzz" in2="bumpSoft" mode="multiply" result="tex0"/>
-    <feComposite in="tex0" in2="fuzz" operator="in" result="tex"/>
-    <feGaussianBlur in="SourceAlpha" stdDeviation="3.2" result="ab"/>
-    <feOffset in="ab" dx="-1.5" dy="-2" result="abo"/>
-    <feComposite in="SourceAlpha" in2="abo" operator="out" result="rim"/>
-    <feFlood flood-color="#2a1a0c" flood-opacity=".38"/>
-    <feComposite in2="rim" operator="in" result="rimShade"/>
-    <feComposite in="rimShade" in2="fuzz" operator="in" result="rimIn"/>
-    <feMerge result="puffed"><feMergeNode in="tex"/><feMergeNode in="rimIn"/></feMerge>
-    <feGaussianBlur in="SourceAlpha" stdDeviation="2.2" result="sb"/>
-    <feOffset in="sb" dx="2" dy="3" result="so"/>
-    <feFlood flood-color="#1f140a" flood-opacity=".35"/>
-    <feComposite in2="so" operator="in" result="shadow"/>
-    <feMerge><feMergeNode in="shadow"/><feMergeNode in="puffed"/></feMerge>
+  <!-- felt: heathered colour, coarse matted fibres, stray fibres past every edge, a puffed stuffed edge, a soft shadow -->
+  <filter id="felt" x="-8%" y="-8%" width="116%" height="120%" color-interpolation-filters="sRGB">
+    <!-- heathered: slow colour variation across the piece -->
+    <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="9" result="heath"/>
+    <feColorMatrix in="heath" type="matrix" values="0 0 0 0 .5  0 0 0 0 .5  0 0 0 0 .5  .9 0 0 0 0" result="heathA"/>
+    <feComposite in="heathA" in2="SourceGraphic" operator="in" result="heathIn"/>
+    <feBlend in="SourceGraphic" in2="heathIn" mode="soft-light" result="col"/>
+    <!-- uneven cut edge -->
+    <feTurbulence type="fractalNoise" baseFrequency="0.09" numOctaves="2" seed="3" result="nEdge"/>
+    <feDisplacementMap in="col" in2="nEdge" scale="3.5" xChannelSelector="R" yChannelSelector="G" result="cut"/>
+    <!-- stray fibres: a fine, strongly displaced copy at the edge -->
+    <feTurbulence type="fractalNoise" baseFrequency="1.8" numOctaves="1" seed="12" result="nFib"/>
+    <feDisplacementMap in="cut" in2="nFib" scale="9" xChannelSelector="R" yChannelSelector="B" result="fib"/>
+    <feComponentTransfer in="fib" result="fibSoft"><feFuncA type="linear" slope=".75"/></feComponentTransfer>
+    <!-- matted fibre surface, coarse enough to read at a distance -->
+    <feTurbulence type="fractalNoise" baseFrequency="1.25" numOctaves="3" seed="8" result="nSurf"/>
+    <feDiffuseLighting in="nSurf" surfaceScale="1.7" lighting-color="#fff" result="bump"><feDistantLight azimuth="235" elevation="55"/></feDiffuseLighting>
+    <feComponentTransfer in="bump" result="bumpSoft"><feFuncR type="linear" slope=".5" intercept=".62"/><feFuncG type="linear" slope=".5" intercept=".62"/><feFuncB type="linear" slope=".5" intercept=".62"/></feComponentTransfer>
+    <feBlend in="cut" in2="bumpSoft" mode="multiply" result="tex00"/>
+    <feColorMatrix in="tex00" type="saturate" values="1.18" result="tex0"/>
+    <feComposite in="tex0" in2="cut" operator="in" result="tex"/>
+    <!-- puff: dark rim low-right, light rim high-left -->
+    <feGaussianBlur in="SourceAlpha" stdDeviation="4.5" result="ab"/>
+    <feOffset in="ab" dx="-3" dy="-4" result="abDark"/>
+    <feComposite in="SourceAlpha" in2="abDark" operator="out" result="rimD"/>
+    <feFlood flood-color="#2a1708" flood-opacity=".55"/><feComposite in2="rimD" operator="in" result="rimDark"/>
+    <feOffset in="ab" dx="3" dy="4" result="abLight"/>
+    <feComposite in="SourceAlpha" in2="abLight" operator="out" result="rimL"/>
+    <feFlood flood-color="#fff6e2" flood-opacity=".38"/><feComposite in2="rimL" operator="in" result="rimLight"/>
+    <feMerge result="pf"><feMergeNode in="tex"/><feMergeNode in="rimDark"/><feMergeNode in="rimLight"/></feMerge>
+    <feComposite in="pf" in2="cut" operator="in" result="puffed"/>
+    <!-- shadow on the piece below -->
+    <feGaussianBlur in="SourceAlpha" stdDeviation="3" result="sb"/>
+    <feOffset in="sb" dx="3" dy="4" result="so"/>
+    <feFlood flood-color="#1f1206" flood-opacity=".42"/><feComposite in2="so" operator="in" result="shadow"/>
+    <feMerge><feMergeNode in="shadow"/><feMergeNode in="fibSoft"/><feMergeNode in="puffed"/></feMerge>
   </filter>
-  <!-- the same felt, without the puffed rim (big background sheets) -->
-  <filter id="feltFlat" x="-2%" y="-2%" width="104%" height="104%" color-interpolation-filters="sRGB">
-    <feTurbulence type="fractalNoise" baseFrequency="0.7" numOctaves="2" seed="5" result="n1"/>
-    <feDisplacementMap in="SourceGraphic" in2="n1" scale="3" xChannelSelector="R" yChannelSelector="G" result="fuzz"/>
-    <feTurbulence type="fractalNoise" baseFrequency="1.1" numOctaves="3" seed="2" result="n2"/>
-    <feDiffuseLighting in="n2" surfaceScale="1" lighting-color="#fff" result="bump"><feDistantLight azimuth="235" elevation="62"/></feDiffuseLighting>
-    <feComponentTransfer in="bump" result="bumpSoft"><feFuncR type="linear" slope=".3" intercept=".72"/><feFuncG type="linear" slope=".3" intercept=".72"/><feFuncB type="linear" slope=".3" intercept=".72"/></feComponentTransfer>
-    <feBlend in="fuzz" in2="bumpSoft" mode="multiply" result="tex0"/>
-    <feComposite in="tex0" in2="fuzz" operator="in" result="tex"/>
-    <feGaussianBlur in="SourceAlpha" stdDeviation="2.5" result="sb"/>
-    <feOffset in="sb" dx="0" dy="-3" result="so"/>
-    <feFlood flood-color="#1f140a" flood-opacity=".25"/>
-    <feComposite in2="so" operator="in" result="shadow"/>
-    <feMerge><feMergeNode in="shadow"/><feMergeNode in="tex"/></feMerge>
+  <!-- big background sheets: same felt, gentler puff -->
+  <filter id="feltFlat" x="-3%" y="-3%" width="106%" height="106%" color-interpolation-filters="sRGB">
+    <feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="4" result="heath"/>
+    <feColorMatrix in="heath" type="matrix" values="0 0 0 0 .5  0 0 0 0 .5  0 0 0 0 .5  .45 0 0 0 0" result="heathA"/>
+    <feComposite in="heathA" in2="SourceGraphic" operator="in" result="heathIn"/>
+    <feBlend in="SourceGraphic" in2="heathIn" mode="soft-light" result="col"/>
+    <feTurbulence type="fractalNoise" baseFrequency="0.08" numOctaves="2" seed="5" result="nEdge"/>
+    <feDisplacementMap in="col" in2="nEdge" scale="6" xChannelSelector="R" yChannelSelector="G" result="cut"/>
+    <feTurbulence type="fractalNoise" baseFrequency="1.8" numOctaves="1" seed="6" result="nFib"/>
+    <feDisplacementMap in="cut" in2="nFib" scale="9" xChannelSelector="R" yChannelSelector="B" result="fib"/>
+    <feComponentTransfer in="fib" result="fibSoft"><feFuncA type="linear" slope=".7"/></feComponentTransfer>
+    <feTurbulence type="fractalNoise" baseFrequency="1.25" numOctaves="3" seed="2" result="nSurf"/>
+    <feDiffuseLighting in="nSurf" surfaceScale="1.3" lighting-color="#fff" result="bump"><feDistantLight azimuth="235" elevation="58"/></feDiffuseLighting>
+    <feComponentTransfer in="bump" result="bumpSoft"><feFuncR type="linear" slope=".38" intercept=".72"/><feFuncG type="linear" slope=".38" intercept=".72"/><feFuncB type="linear" slope=".38" intercept=".72"/></feComponentTransfer>
+    <feBlend in="cut" in2="bumpSoft" mode="multiply" result="tex00"/>
+    <feColorMatrix in="tex00" type="saturate" values="1.18" result="tex0"/>
+    <feComposite in="tex0" in2="cut" operator="in" result="tex"/>
+    <feGaussianBlur in="SourceAlpha" stdDeviation="5" result="ab"/>
+    <feOffset in="ab" dx="0" dy="6" result="abL"/>
+    <feComposite in="SourceAlpha" in2="abL" operator="out" result="rimL"/>
+    <feFlood flood-color="#fff6e2" flood-opacity=".3"/><feComposite in2="rimL" operator="in" result="rimLight"/>
+    <feMerge result="pf"><feMergeNode in="tex"/><feMergeNode in="rimLight"/></feMerge>
+    <feComposite in="pf" in2="cut" operator="in" result="puffed"/>
+    <feGaussianBlur in="SourceAlpha" stdDeviation="4" result="sb"/>
+    <feOffset in="sb" dx="0" dy="-5" result="so"/>
+    <feFlood flood-color="#1f1206" flood-opacity=".32"/><feComposite in2="so" operator="in" result="shadow"/>
+    <feMerge><feMergeNode in="shadow"/><feMergeNode in="fibSoft"/><feMergeNode in="puffed"/></feMerge>
   </filter>
-  <!-- thread: a little wobble so stitches look sewn by hand -->
+  <!-- thread: hand wobble, a tiny highlight and a shadow where it dips into the felt -->
   <filter id="thread" x="-5%" y="-5%" width="110%" height="110%">
-    <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="1" seed="4" result="n"/>
-    <feDisplacementMap in="SourceGraphic" in2="n" scale="1.6" xChannelSelector="R" yChannelSelector="G" result="d"/>
-    <feDropShadow dx=".6" dy=".9" stdDeviation=".4" flood-color="#000" flood-opacity=".35"/>
+    <feTurbulence type="fractalNoise" baseFrequency="0.6" numOctaves="1" seed="4" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="2.4" xChannelSelector="R" yChannelSelector="G" result="d"/>
+    <feGaussianBlur in="d" stdDeviation=".35" result="db"/>
+    <feDropShadow in="db" dx=".9" dy="1.4" stdDeviation=".6" flood-color="#1a0f05" flood-opacity=".55"/>
   </filter>
   <linearGradient id="towerShade" x1="0" x2="1">
-    <stop offset="0" stop-color="#2a1708" stop-opacity=".42"/><stop offset=".22" stop-color="#fff2d8" stop-opacity=".12"/>
-    <stop offset=".45" stop-color="#2a1708" stop-opacity="0"/><stop offset="1" stop-color="#2a1708" stop-opacity=".55"/>
+    <stop offset="0" stop-color="#2a1708" stop-opacity=".45"/><stop offset=".22" stop-color="#fff2d8" stop-opacity=".12"/>
+    <stop offset=".45" stop-color="#2a1708" stop-opacity="0"/><stop offset="1" stop-color="#2a1708" stop-opacity=".6"/>
   </linearGradient>
   <radialGradient id="glow" cx=".5" cy=".85" r=".8"><stop offset="0" stop-color="#ffd27a"/><stop offset="1" stop-color="#d0782f"/></radialGradient>
 </defs>`;
 
-const thread = (d, color, w = 2.2, dash = '7 5', parent) =>
+const thread = (d, color, w = 3.2, dash = '10 7', parent) =>
   el('path', { d, fill: 'none', stroke: color, 'stroke-width': w, 'stroke-dasharray': dash, 'stroke-linecap': 'round', filter: 'url(#thread)' }, parent);
 
+// blanket stitch along a path: a running line plus little ticks into the piece
+function blanket(pathD, color, every = 14, len = 9, inward = 1, parent) {
+  const p = el('path', { d: pathD, fill: 'none' }, parent);
+  const L = p.getTotalLength(); p.remove();
+  let d = '';
+  for (let s = 0; s < L; s += every) {
+    const a = p.getPointAtLength(Math.min(L, s)), b = p.getPointAtLength(Math.min(L, s + 1));
+    const tx = b.x - a.x, ty = b.y - a.y, m = Math.hypot(tx, ty) || 1;
+    const nx = -ty / m * inward, ny = tx / m * inward;
+    d += `M${a.x.toFixed(1)} ${a.y.toFixed(1)} l${(nx * len).toFixed(1)} ${(ny * len).toFixed(1)} `;
+  }
+  thread(pathD, color, 2.6, '0', parent);
+  thread(d, color, 2.6, '0', parent);
+}
+// a wonky hand-cut shape for a felt stone
+function cutRect(x, y, w, h) {
+  const j = () => (rnd() - 0.5) * Math.min(w, h) * 0.22;
+  const p = [[x + j(), y + j()], [x + w + j(), y + j()], [x + w + j(), y + h + j()], [x + j(), y + h + j()]];
+  const r = Math.min(w, h) * 0.3;
+  let d = '';
+  for (let i = 0; i < 4; i++) {
+    const c = p[i], nx = p[(i + 1) % 4], pv = p[(i + 3) % 4];
+    const a = [c[0] + (pv[0] - c[0]) * r / Math.hypot(pv[0] - c[0], pv[1] - c[1]), c[1] + (pv[1] - c[1]) * r / Math.hypot(pv[0] - c[0], pv[1] - c[1])];
+    const b = [c[0] + (nx[0] - c[0]) * r / Math.hypot(nx[0] - c[0], nx[1] - c[1]), c[1] + (nx[1] - c[1]) * r / Math.hypot(nx[0] - c[0], nx[1] - c[1])];
+    d += `${i ? 'L' : 'M'}${a[0].toFixed(1)} ${a[1].toFixed(1)} Q${c[0].toFixed(1)} ${c[1].toFixed(1)} ${b[0].toFixed(1)} ${b[1].toFixed(1)} `;
+  }
+  return d + 'Z';
+}
 /* sky, sun, clouds */
 el('rect', { x: -20, y: -20, width: 1480, height: 940, fill: '#d9e1d8', filter: 'url(#feltFlat)' });
 const skyBand = el('g', { filter: 'url(#feltFlat)' });
 el('path', { d: 'M-20 260 Q400 220 760 300 T1460 270 V940 H-20Z', fill: '#efe2c6' }, skyBand);
 el('circle', { cx: 700, cy: 150, r: 70, fill: '#f8e7b5', filter: 'url(#felt)' });
-thread('M700 88 a62 62 0 1 1 -0.1 0', '#e0b85e', 2, '6 6');
+blanket('M700 86 a64 64 0 1 1 -0.1 0', '#d8a743', 13, 8, 1);
 function cloud(x, y, s) {
   const g = el('g', { transform: `translate(${x} ${y}) scale(${s})` });
   const d = 'M0 40 C-6 14 26 4 40 18 C48 -6 92 -8 100 16 C116 2 150 10 146 38 C160 44 156 64 138 64 H6 C-12 64 -14 46 0 40Z';
   el('path', { d, fill: '#fbf8f1', filter: 'url(#felt)' }, g);
-  thread('M10 56 H134 M14 44 C14 30 34 26 44 34 M56 24 C66 8 90 10 96 28', '#c9d3d6', 1.6, '5 5', g);
+  thread('M14 44 C14 30 34 26 44 34 M56 24 C66 8 90 10 96 28', '#b9c6cc', 2.4, '7 6', g);
 }
 cloud(110, 110, 1.2); cloud(840, 230, 0.9); cloud(560, 60, 0.7);
 
@@ -97,8 +154,8 @@ const hills = [
   ['M-20 760 C260 700 520 740 760 712 S1200 690 1460 730 V940 H-20Z', '#93a96f', '#7b915a'],
 ];
 for (const [d, c, st] of hills) { el('path', { d, fill: c, filter: 'url(#felt)' }); }
-thread('M-20 702 C200 622 420 662 640 632 S1100 572 1460 652', '#7e9070', 2, '8 6');
-thread('M-20 772 C260 712 520 752 760 724 S1200 702 1460 742', '#6b8050', 2, '8 6');
+thread('M-20 704 C200 624 420 664 640 634 S1100 574 1460 654', '#e8eccf', 3, '11 8');
+thread('M-20 774 C260 714 520 754 760 726 S1200 704 1460 744', '#dfe6b8', 3, '11 8');
 
 /* the tower: a dark felt backing with felt stones stitched on */
 const cx = 1150, tw = 138, tTop = 132, base = 830;
@@ -117,18 +174,19 @@ el('path', { d: parD, fill: '#5d4129', filter: 'url(#felt)' }, tower);
 const stoneCols = ['#e3bf87', '#d9ab6c', '#ecd3a2', '#d39a6a', '#c98f62', '#e8c48f', '#dcb57b', '#f0dcb4', '#cfa476'];
 const stones = el('g', { filter: 'url(#felt)' }, tower);
 const stitches = el('g', null, tower);
-function stoneRow(y0, y1, xl, xr, inset = 4) {
+function stoneRow(y0, y1, xl, xr, inset = 5) {
   let xx = xl + 2;
   while (xx < xr - 8) {
-    let w = 26 + rnd() * 32;
+    let w = 30 + rnd() * 34;
     if (xr - (xx + w) < 22) w = xr - xx - 2;
     const sx = xx + 2, sy = y0 + 2, sw = w - 4, sh = y1 - y0 - 4;
     const r = 6 + rnd() * 5;
-    el('rect', { x: sx, y: sy, width: sw, height: sh, rx: r, fill: stoneCols[Math.floor(rnd() * stoneCols.length)] }, stones);
-    if (sw > 14 && sh > 12) {
-      el('rect', { x: sx + inset, y: sy + inset, width: sw - inset * 2, height: sh - inset * 2, rx: Math.max(2, r - 3),
-        fill: 'none', stroke: rnd() < 0.5 ? '#fff4dc' : '#8a5a33', 'stroke-opacity': .75, 'stroke-width': 1.3,
-        'stroke-dasharray': '4 3.5', filter: 'url(#thread)' }, stitches);
+    void r;
+    el('path', { d: cutRect(sx, sy, sw, sh), fill: stoneCols[Math.floor(rnd() * stoneCols.length)] }, stones);
+    if (sw > 16 && sh > 14) {
+      el('path', { d: cutRect(sx + inset + 1, sy + inset + 1, sw - inset * 2 - 2, sh - inset * 2 - 2),
+        fill: 'none', stroke: rnd() < 0.6 ? '#fff3d6' : '#6e4322', 'stroke-width': 2.2,
+        'stroke-dasharray': '5.5 4', 'stroke-linecap': 'round', filter: 'url(#thread)' }, stitches);
     }
     xx += w;
   }
@@ -138,9 +196,9 @@ for (let i = 0, bx = cx - pw; i < n; i++, bx += a + gap) stoneRow(pTop - mh, pTo
 stoneRow(pTop, tTop + tw * 0.1, cx - pw + 2, cx + pw - 2);
 // a stitched trim band where the parapet overhangs
 el('path', { d: `M${cx - pw} ${tTop + tw * 0.08} L${cx + pw} ${tTop + tw * 0.08} L${cx + hw(tTop)} ${tTop + tw * 0.32} L${cx - hw(tTop)} ${tTop + tw * 0.32}Z`, fill: '#b98a5a', filter: 'url(#felt)' }, tower);
-thread(`M${cx - pw + 10} ${tTop + tw * 0.15} L${cx + pw - 10} ${tTop + tw * 0.15}`, '#fff1d6', 1.6, '5 4', tower);
+thread(`M${cx - pw + 10} ${tTop + tw * 0.15} L${cx + pw - 10} ${tTop + tw * 0.15}`, '#fff1d6', 2.6, '7 5', tower);
 for (let y = tTop + tw * 0.34; y < base - 30; ) {
-  const h = 26 + rnd() * 14, yb = Math.min(base, y + h);
+  const h = 30 + rnd() * 14, yb = Math.min(base, y + h);
   stoneRow(y, yb, cx - hw(y), cx + hw(y));
   y = yb + 1;
 }
@@ -157,7 +215,7 @@ const arch = (w, t, b) => `M${wx - w / 2} ${b} L${wx - w / 2} ${t + w / 2} A${w 
 el('path', { d: arch(wW + 26, wTop - 13, wB + 4), fill: '#f2e4c4', filter: 'url(#felt)' }, tower);
 el('path', { d: arch(wW, wTop, wB), fill: '#2e1c10', filter: 'url(#felt)' }, tower);
 el('path', { d: arch(wW - 16, wTop + 22, wB - 6), fill: 'url(#glow)', filter: 'url(#felt)' }, tower);
-thread(arch(wW + 14, wTop - 7, wB + 2).replace(/Z$/, ''), '#b48a52', 1.6, '5 4', tower);
+thread(arch(wW + 14, wTop - 7, wB + 2).replace(/Z$/, ''), '#fff1d6', 2.6, '7 5', tower);
 el('rect', { x: wx - wW * 0.8, y: wB, width: wW * 1.6, height: 11, rx: 4, fill: '#e9d6ae', filter: 'url(#felt)' }, tower);
 // felt sparkles drifting from the window
 const starD = 'M0 -7 L2 -2 L7 0 L2 2 L0 7 L-2 2 L-7 0 L-2 -2Z';
@@ -174,7 +232,7 @@ const dW = tw * 0.42, dTop = base - tw * 0.78;
 const door = el('g', null, tower);
 el('path', { d: arch(dW + 22, dTop - 11, base + 10), fill: '#f2e4c4', filter: 'url(#felt)' }, door);
 el('path', { d: arch(dW, dTop, base + 10), fill: '#7a4b2a', filter: 'url(#felt)' }, door);
-for (let i = 1; i < 4; i++) thread(`M${wx - dW / 2 + dW * i / 4} ${dTop + 8} V${base}`, '#c99a68', 1.4, '4 4', door);
+for (let i = 1; i < 4; i++) thread(`M${wx - dW / 2 + dW * i / 4} ${dTop + 8} V${base}`, '#e6c18f', 2.4, '6 5', door);
 el('circle', { cx: wx + dW * 0.28, cy: dTop + dW * 0.9, r: 3.5, fill: '#d9b46a', filter: 'url(#felt)' }, door);
 
 /* ivy climbing the tower: felt leaves with stitched veins, felt flowers with knotted centres */
@@ -184,14 +242,14 @@ function vine(pts) {
   let d = `M${pts[0][0]} ${pts[0][1]}`;
   for (let i = 1; i < pts.length; i++) { const p = pts[i - 1], q = pts[i]; d += ` Q${p[0] + (q[0] - p[0]) * 0.2 + 10} ${(p[1] + q[1]) / 2} ${q[0]} ${q[1]}`; }
   el('path', { d, fill: 'none', stroke: '#4c5a28', 'stroke-width': 5, 'stroke-linecap': 'round', filter: 'url(#felt)' }, ivy);
-  thread(d, '#7d8f45', 1.2, '4 4', ivy);
+  thread(d, '#a8bb63', 2, '5 4', ivy);
   return pts;
 }
 const greens = ['#4f8a38', '#5f9a43', '#447a31', '#6aa64c'];
 function leaf(x, y, rot, s) {
   const g = el('g', { transform: `translate(${x} ${y}) rotate(${rot}) scale(${s})` }, ivy);
   el('path', { d: leafD, fill: greens[Math.floor(rnd() * greens.length)], filter: 'url(#felt)' }, g);
-  thread('M0 -2 V-24 M0 -10 L-6 -15 M0 -10 L6 -15', '#d6e8b0', 0.9, '2.5 2', g);
+  thread('M0 -2 V-24 M0 -10 L-6 -15 M0 -10 L6 -15', '#e3f0c0', 1.4, '0', g);
 }
 function flower(x, y, s, col) {
   const g = el('g', { transform: `translate(${x} ${y}) scale(${s})` }, ivy);
@@ -208,10 +266,10 @@ flower(cx - 34, base - 118, 1.25, '#f3b9c0'); flower(cx - 60, base - 232, 1.1, '
 
 /* ground: green felt with thread grass and little felt flowers */
 el('path', { d: 'M-20 830 C300 800 700 840 1000 818 C1150 806 1300 822 1460 812 V940 H-20Z', fill: '#6f8a48', filter: 'url(#felt)' });
-thread('M-20 842 C300 812 700 852 1000 830 C1150 818 1300 834 1460 824', '#a6bd6e', 2, '7 6');
+blanket('M-20 834 C300 804 700 844 1000 822 C1150 810 1300 826 1460 816', '#c7d68c', 16, 10, -1);
 for (let gx = 10; gx < 1440; gx += 18 + rnd() * 22) {
   const gy = 832 - 8 * Math.sin(gx / 140) + 6;
-  thread(`M${gx} ${gy} l-3 -11 M${gx + 4} ${gy} l3 -13 M${gx + 8} ${gy} l1 -9`, '#3f5a24', 1.6, '0', null);
+  thread(`M${gx} ${gy} l-4 -13 M${gx + 5} ${gy} l3 -15 M${gx + 10} ${gy} l1 -10`, '#3f5a24', 2.4, '0', null);
 }
 for (const [fx, fy, c] of [[240, 836, '#f3b9c0'], [520, 842, '#fbf5ea'], [880, 838, '#f8d66a'], [1330, 834, '#fbf5ea'], [990, 846, '#f3b9c0']]) flower(fx, fy, 0.9, c);
 
@@ -229,7 +287,7 @@ tag.textContent = 'Fabric book covers, sewn by hand one at a time.';
 // a felt button for the call to action
 const btn = el('g', { transform: 'translate(100 660)' });
 el('rect', { width: 300, height: 66, rx: 18, fill: '#a4523f', filter: 'url(#felt)' }, btn);
-el('rect', { x: 8, y: 8, width: 284, height: 50, rx: 12, fill: 'none', stroke: '#ffe7d2', 'stroke-width': 1.8, 'stroke-dasharray': '6 5', filter: 'url(#thread)' }, btn);
+el('rect', { x: 8, y: 8, width: 284, height: 50, rx: 12, fill: 'none', stroke: '#ffe7d2', 'stroke-width': 2.6, 'stroke-dasharray': '8 6', filter: 'url(#thread)' }, btn);
 const bt = el('text', { x: 150, y: 42, 'text-anchor': 'middle', 'font-family': 'EB Garamond', 'font-size': 23, 'font-weight': 600, fill: '#fff4e6' }, btn);
 bt.textContent = 'See the book covers';
 </script>
