@@ -28,6 +28,10 @@ npx http-server .
 | About photo | `images/about-hoop.svg` |
 | Colours and fonts | CSS variables at the top of `css/styles.css` |
 
+## Updating the live site
+
+After changing any CSS or JS file, run `./bump-version.sh` before committing. It tags the file links in `index.html` with a new version so phones fetch the new files instead of showing a cached old copy.
+
 ## Hosting on GitHub Pages
 
 Settings → Pages → Deploy from a branch → pick the branch and `/ (root)`.
