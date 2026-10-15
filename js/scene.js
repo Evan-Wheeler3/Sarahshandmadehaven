@@ -28,7 +28,7 @@
 
   const S = {
     dpr: 1, vw: 0, vh: 0, L: null,
-    mips: [], patterns: [], tileSize: 0,
+    mips: [], patterns: [], tileW: 0, tileH: 0, tint: null,
     p: 0, target: 0, t: 0, pulseUntil: 0,
     zoomEnd: 1, motes: [], drawnP: -1, dirty: true
   };
@@ -73,13 +73,40 @@
     }
 
     S.L = { narrow, tw, cx, groundY, topY, winW, winTop, winH, winBottom, slitY, F, baseY, Z, tufts, clouds };
+    S.tint = makeTint();
+  }
+
+  // Broad, soft patches of lighter and darker stone laid over the tower in
+  // world space. They never repeat, which hides the texture's repetition,
+  // and once zoomed in they become gentle weathering across the wall.
+  function makeTint() {
+    const rnd = window.HavenStone.mulberry32(77);
+    const c = document.createElement('canvas');
+    c.width = 9; c.height = 70;
+    const x = c.getContext('2d');
+    for (let j = 0; j < c.height; j++) {
+      for (let i = 0; i < c.width; i++) {
+        const v = 0.5 + (rnd() - 0.5) * 0.55;
+        x.fillStyle = `rgb(${Math.round(v * 255)},${Math.round(v * 236)},${Math.round(v * 205)})`;
+        x.fillRect(i, j, 1, 1);
+      }
+    }
+    return c;
   }
 
   function buildTexture() {
-    const size = Math.round(clamp(S.vw * 0.6, 520, 900));
-    if (size === S.tileSize && S.mips.length) return;
-    S.tileSize = size;
-    const base = window.HavenStone.makeTile(size, S.dpr, 1871, STYLE);
+    // Phones: a 440px-wide tile is already wider than the screen. Wide
+    // screens: make the tile as wide as the screen so the wall never repeats
+    // side to side, at a slightly lower resolution to stay within Safari's
+    // canvas size limit.
+    const wide = S.vw > 700;
+    const w = wide ? Math.round(clamp(S.vw * 1.02, 720, 1600)) : 440;
+    if (w === S.tileW && S.mips.length) return;
+    S.tileW = w;
+    S.tileH = Math.round(w * (wide ? 2.4 : 4.5));
+    S.tileDpr = wide ? Math.min(S.dpr, 1.5) : S.dpr;
+    const rowH = wide ? clamp(S.vw * 0.055, 60, 84) : 50;
+    const base = window.HavenStone.makeTile(S.tileW, S.tileH, S.tileDpr, 1871, STYLE, rowH);
     S.sparkles = base.sparkles || [];
     S.mips = window.HavenStone.makeMips(base);
     S.patterns = S.mips.map((c) => ctx.createPattern(c, 'repeat'));
@@ -125,11 +152,11 @@
 
   function stonePattern(z) {
     const L = S.L;
-    const want = z / L.Z; // device px per base-tile px
+    const want = (z / L.Z) * (S.dpr / S.tileDpr); // device px per base-tile px
     let i = Math.floor(Math.log2(1 / Math.max(want, 1e-4)));
     i = clamp(i, 0, S.patterns.length - 1);
     const pat = S.patterns[i];
-    const k = (S.mips[0].width / S.mips[i].width) / (L.Z * S.dpr);
+    const k = (S.mips[0].width / S.mips[i].width) / (L.Z * S.tileDpr);
     pat.setTransform(new DOMMatrix([k, 0, 0, k, L.F.x, L.F.y]));
     return pat;
   }
@@ -256,6 +283,17 @@
     ctx.fillStyle = pat;
     towerBody(); ctx.fill();
     parapet(); ctx.fill();
+
+    if (S.tint) {
+      ctx.save();
+      towerBody(); parapet(ctx, true); ctx.clip();
+      ctx.globalCompositeOperation = 'soft-light';
+      ctx.globalAlpha = 0.7;
+      ctx.imageSmoothingEnabled = true;
+      const top = L.topY - tw * 0.7;
+      ctx.drawImage(S.tint, L.cx - tw * 0.7, top, tw * 1.4, L.baseY - top);
+      ctx.restore();
+    }
 
     // cylindrical shading — fades away as we get close
     const shade = 1 - smooth(clamp((p - 0.1) / 0.6, 0, 1));
@@ -450,7 +488,7 @@
     const { vw, vh, dpr } = S;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const pat = S.patterns[0];
-    pat.setTransform(new DOMMatrix([1 / dpr, 0, 0, 1 / dpr, 0, 0]));
+    pat.setTransform(new DOMMatrix([1 / S.tileDpr, 0, 0, 1 / S.tileDpr, 0, 0]));
     ctx.globalAlpha = alpha;
     ctx.fillStyle = pat;
     ctx.fillRect(0, 0, vw, vh);
@@ -517,7 +555,7 @@
     const p = S.p;
     const cam = camera(p);
     const scale = cam.z / L.Z;           // screen px per tile px
-    const tile = S.tileSize * scale;
+    const tileW = S.tileW * scale, tileH = S.tileH * scale;
     const covered = p > 0.985;
 
     gctx.save();
@@ -526,11 +564,15 @@
       gctx.setTransform(dpr * cam.z, 0, 0, dpr * cam.z, dpr * (cam.fx - L.F.x * cam.z), dpr * (cam.fy - L.F.y * cam.z));
       towerBody(gctx); parapet(gctx, true);
       gctx.clip();
+      // nothing below the grass line
+      gctx.beginPath();
+      gctx.rect(L.cx - L.tw * 2, -S.vh * 4, L.tw * 4, L.groundY - L.tw * 0.3 + S.vh * 4);
+      gctx.clip();
     }
     gctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     // sunlight that slowly sweeps across the stone
-    const sweep = ((S.t * 0.045) % 1.6 - 0.3) * vw;
+    const sweep = ((S.t * 0.018) % 1.6 - 0.3) * vw;
     const sheenA = smooth(clamp((p - 0.5) / 0.5, 0, 1));
     if (sheenA > 0) {
       const sy = vh * (0.3 + 0.15 * Math.sin(S.t * 0.13));
@@ -544,28 +586,32 @@
 
     gctx.globalCompositeOperation = 'lighter';
     // when far away, show only some grains so the tower doesn't fizz
-    const every = Math.max(1, Math.round(0.4 / Math.max(scale, 0.01)));
+    const every = Math.max(2, Math.round(0.8 / Math.max(scale, 0.01)));
     const size = (11 + 24 * Math.min(1, scale)) * (L.narrow ? 0.85 : 1);
-    const x0 = Math.floor(-cam.fx / tile) - 1, x1 = Math.ceil((vw - cam.fx) / tile);
-    const y0 = Math.floor(-cam.fy / tile) - 1, y1 = Math.ceil((vh - cam.fy) / tile);
+    const x0 = Math.floor(-cam.fx / tileW) - 1, x1 = Math.ceil((vw - cam.fx) / tileW);
+    const y0 = Math.floor(-cam.fy / tileH) - 1, y1 = Math.ceil((vh - cam.fy) / tileH);
     const sw = Math.max(vw * 0.28, 160);
     // the window opening is a hole in the stone, so no glints there
     const wx0 = (L.cx - L.winW * 0.6 - L.F.x) * cam.z + cam.fx, wx1 = (L.cx + L.winW * 0.6 - L.F.x) * cam.z + cam.fx;
     const wy0 = (L.winTop - L.F.y) * cam.z + cam.fy, wy1 = (L.winBottom - L.F.y) * cam.z + cam.fy;
+    const dx0 = (L.cx - L.tw * 0.25 - L.F.x) * cam.z + cam.fx, dx1 = (L.cx + L.tw * 0.25 - L.F.x) * cam.z + cam.fx;
+    const dy0 = (L.groundY - L.tw * 0.7 - L.F.y) * cam.z + cam.fy;
     const list = S.sparkles;
     for (let ty = y0; ty <= y1; ty++) {
       for (let tx = x0; tx <= x1; tx++) {
-        const bx = cam.fx + tx * tile, by = cam.fy + ty * tile;
+        const bx = cam.fx + tx * tileW, by = cam.fy + ty * tileH;
         const start = (((tx * 7 + ty * 13) % every) + every) % every;
         for (let i = start; i < list.length; i += every) {
           const sp = list[i];
           const x = bx + sp.x * scale, y = by + sp.y * scale;
           if (x < -10 || y < -10 || x > vw + 10 || y > vh + 10) continue;
           if (!covered && x > wx0 && x < wx1 && y > wy0 && y < wy1) continue;
-          const tw = Math.sin(S.t * sp.speed * 2.6 + sp.ph + tx * 1.7 + ty * 2.3);
-          if (tw < 0.76) continue;
+          if (!covered && x > dx0 && x < dx1 && y > dy0) continue;
+          // slow, gentle twinkle: each grain flashes for about a second every few seconds
+          const tw = Math.sin(S.t * sp.speed * 0.9 + sp.ph + tx * 1.7 + ty * 2.3);
+          if (tw < 0.9) continue;
           const light = 0.3 + 0.7 * Math.exp(-Math.pow((x - sweep) / sw, 2));
-          const a = Math.pow((tw - 0.76) / 0.24, 2) * light;
+          const a = Math.pow((tw - 0.9) / 0.1, 1.5) * light;
           if (a < 0.03) continue;
           const d = size * sp.size * (0.5 + a * 0.6);
           gctx.globalAlpha = Math.min(1, a * 1.1);
@@ -585,7 +631,7 @@
     const phase = p < 0.45 ? 'hero' : 'wall';
     if (phase === lastPhase) return;
     lastPhase = phase;
-    const c = phase === 'hero' ? LOOK.ground : LOOK.wall;
+    const c = phase === 'hero' ? LOOK.sky : LOOK.wall;
     root.style.backgroundColor = c;
     document.body.style.backgroundColor = c;
     if (themeMeta) themeMeta.setAttribute('content', phase === 'hero' ? LOOK.sky : LOOK.wall);

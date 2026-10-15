@@ -17,9 +17,15 @@
   <script>document.documentElement.classList.add('js');</script>
 </head>
 <body>
-  <canvas id="scene" aria-hidden="true"></canvas>
-  <canvas id="glint" aria-hidden="true"></canvas>
-  <svg id="ivy" aria-hidden="true"></svg>
+  <!-- The scene is pinned with position: sticky rather than fixed, so iOS
+       Safari also paints it behind its floating toolbar. -->
+  <div class="backdrop" aria-hidden="true">
+    <div class="backdrop__pin">
+      <canvas id="scene"></canvas>
+      <canvas id="glint"></canvas>
+      <svg id="ivy"></svg>
+    </div>
+  </div>
 
   <nav class="topnav" aria-label="Main">
     <a class="topnav__brand" href="#top">

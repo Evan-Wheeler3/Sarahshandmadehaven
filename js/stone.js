@@ -136,16 +136,20 @@
     ctx.restore();
   }
 
-  function buildStones(size, rnd, style) {
+  function buildStones(size, height, rowH0, rnd, style) {
     const stones = [];
-    const rows = 10;
+    const rows = Math.max(4, Math.round(height / rowH0));
     const hs = [];
-    for (let i = 0; i < rows; i++) hs.push(0.75 + rnd() * 0.5);
+    // mostly even courses, with the odd thin or extra-tall band, like a real hand-laid wall
+    for (let i = 0; i < rows; i++) {
+      const roll = rnd();
+      hs.push(roll < 0.12 ? 0.5 + rnd() * 0.2 : roll < 0.22 ? 1.3 + rnd() * 0.4 : 0.8 + rnd() * 0.4);
+    }
     const hsum = hs.reduce((a, b) => a + b, 0);
 
     let y = 0;
     for (let r = 0; r < rows; r++) {
-      const rowH = (hs[r] / hsum) * size;
+      const rowH = (hs[r] / hsum) * height;
       const ws = [];
       let wsum = 0;
       while (wsum < size) { const w = rowH * (1.15 + rnd() * 1.45); ws.push(w); wsum += w; }
@@ -224,52 +228,66 @@
     return stones;
   }
 
-  function makeTile(size, dpr, seed, styleName) {
+  // A tile `size` wide and `height` tall (CSS px), with stone courses about
+  // `rowH` tall. A tall tile means the
+  // tower, which is a narrow vertical strip of it, barely repeats.
+  function makeTile(size, height, dpr, seed, styleName, rowH) {
     const style = STYLES[styleName] || STYLES.sandstone;
     const rnd = mulberry32(seed || 1871);
     const c = document.createElement('canvas');
-    c.width = c.height = Math.round(size * dpr);
+    c.width = Math.round(size * dpr);
+    c.height = Math.round(height * dpr);
     const ctx = c.getContext('2d');
-    ctx.scale(c.width / size, c.height / size);
+    ctx.scale(c.width / size, c.height / height);
 
     // mortar bed
     ctx.fillStyle = style.mortar;
-    ctx.fillRect(0, 0, size, size);
+    ctx.fillRect(0, 0, size, height);
     const gr = style.grit.join(',');
-    for (let i = 0; i < size * 4; i++) {
+    for (let i = 0; i < height * 4; i++) {
       ctx.fillStyle = rnd() < 0.5 ? `rgba(20,15,10,${rnd() * 0.25})` : `rgba(${gr},${rnd() * 0.18})`;
-      ctx.fillRect(rnd() * size, rnd() * size, 1 + rnd() * 2, 1 + rnd() * 2);
+      ctx.fillRect(rnd() * size, rnd() * height, 1 + rnd() * 2, 1 + rnd() * 2);
     }
 
-    const stones = buildStones(size, rnd, style);
+    const stones = buildStones(size, height, rowH || size / 10, rnd, style);
     // draw every stone at each wrapped offset so the tile repeats seamlessly
-    const offs = [-size, 0, size];
+    const xoffs = [-size, 0, size], yoffs = [-height, 0, height];
     for (const st of stones) {
       const s = st.shape;
-      for (const ox of offs) {
+      for (const ox of xoffs) {
         if (s.x + ox > size + 6 || s.x + s.w + ox < -6) continue;
-        for (const oy of offs) {
-          if (s.y + oy > size + 6 || s.y + s.h + oy < -6) continue;
+        for (const oy of yoffs) {
+          if (s.y + oy > height + 6 || s.y + s.h + oy < -6) continue;
           ctx.save(); ctx.translate(ox, oy); renderStone(ctx, st, style); ctx.restore();
         }
       }
     }
 
-    // fine grain over everything
-    const img = ctx.getImageData(0, 0, c.width, c.height);
+    // fine grain over everything, stamped from a small noise tile
+    const n = document.createElement('canvas');
+    n.width = n.height = 256;
+    const nx = n.getContext('2d');
+    const img = nx.createImageData(256, 256);
     const d = img.data;
     for (let i = 0; i < d.length; i += 4) {
-      const n = (rnd() - 0.5) * style.grain;
-      d[i] += n; d[i + 1] += n; d[i + 2] += n * 0.9;
+      const v = 128 + (rnd() - 0.5) * style.grain * 2;
+      d[i] = d[i + 1] = v; d[i + 2] = v * 0.97; d[i + 3] = 255;
     }
-    ctx.putImageData(img, 0, 0);
+    nx.putImageData(img, 0, 0);
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalCompositeOperation = 'overlay';
+    ctx.globalAlpha = 0.55;
+    ctx.fillStyle = ctx.createPattern(n, 'repeat');
+    ctx.fillRect(0, 0, c.width, c.height);
+    ctx.restore();
 
     // glint points (tile CSS px), only within the tile so each appears once per repeat
     c.sparkles = [];
     for (const st of stones) {
       for (const [sx, sy] of st.sparks) {
-        const x = ((sx % size) + size) % size, y = ((sy % size) + size) % size;
-        c.sparkles.push({ x, y, ph: rnd() * 100, speed: 0.25 + rnd() * 0.5, size: 0.6 + rnd() * 0.8 });
+        const x = ((sx % size) + size) % size, y = ((sy % height) + height) % height;
+        c.sparkles.push({ x, y, ph: rnd() * 100, speed: 0.6 + rnd() * 0.6, size: 0.6 + rnd() * 0.8 });
       }
     }
     return c;
@@ -281,7 +299,8 @@
     let prev = base;
     while (prev.width > 24) {
       const c = document.createElement('canvas');
-      c.width = c.height = Math.max(1, Math.round(prev.width / 2));
+      c.width = Math.max(1, Math.round(prev.width / 2));
+      c.height = Math.max(1, Math.round(prev.height / 2));
       const cx = c.getContext('2d');
       cx.imageSmoothingQuality = 'high';
       cx.drawImage(prev, 0, 0, c.width, c.height);
