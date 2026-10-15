@@ -36,15 +36,33 @@
     ctx.closePath();
   }
 
-  function stoneColor(rnd) {
-    const roll = rnd();
-    let h = 30 + rnd() * 14, s = 4 + rnd() * 8, l = 41 + rnd() * 17;
-    if (roll < 0.1) { h = 70 + rnd() * 25; s = 4 + rnd() * 5; }          // lichen-grey
-    else if (roll < 0.22) { h = 20 + rnd() * 10; s = 10 + rnd() * 8; l -= 3; } // warm sandstone
-    return { h, s, l };
-  }
+  // Each style tunes colour, mortar and lighting; geometry is shared.
+  const STYLES = {
+    grey: {
+      mortar: '#3d362f', grit: [200, 185, 160], highlight: 'rgba(255,250,238,.22)', grain: 30,
+      color(rnd) {
+        const roll = rnd();
+        let h = 30 + rnd() * 14, s = 4 + rnd() * 8, l = 41 + rnd() * 17;
+        if (roll < 0.1) { h = 70 + rnd() * 25; s = 4 + rnd() * 5; }          // lichen-grey
+        else if (roll < 0.22) { h = 20 + rnd() * 10; s = 10 + rnd() * 8; l -= 3; } // warm sandstone
+        return { h, s, l };
+      }
+    },
+    sandstone: {
+      mortar: '#6b5238', grit: [255, 230, 190], highlight: 'rgba(255,246,215,.42)', grain: 22, strata: true,
+      color(rnd) {
+        const roll = rnd();
+        let h = 32 + rnd() * 9, s = 38 + rnd() * 18, l = 60 + rnd() * 12;
+        if (roll < 0.16) { h = 18 + rnd() * 8; s = 38 + rnd() * 14; l = 58 + rnd() * 8; }  // rosy
+        else if (roll < 0.3) { h = 40 + rnd() * 6; s = 30 + rnd() * 12; l = 72 + rnd() * 7; } // pale cream
+        else if (roll < 0.38) { h = 26 + rnd() * 6; s = 42 + rnd() * 10; l = 50 + rnd() * 6; } // deeper ochre
+        return { h, s, l };
+      }
+    }
+  };
 
-  function renderStone(ctx, st) {
+
+  function renderStone(ctx, st, style) {
     const { x, y, w, h } = st.shape;
     const c = st.color;
 
@@ -73,6 +91,19 @@
       ctx.fill();
     }
 
+    // sedimentary bands running through sandstone
+    for (const b of st.strata) {
+      ctx.strokeStyle = b.c;
+      ctx.lineWidth = b.w;
+      ctx.beginPath();
+      for (let i = 0; i <= 8; i++) {
+        const px = x - 4 + ((w + 8) * i) / 8;
+        const py = b.y + Math.sin(i * b.f + b.ph) * b.amp;
+        if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py);
+      }
+      ctx.stroke();
+    }
+
     if (st.moss) {
       const mg = ctx.createRadialGradient(st.moss.x, y + h, 0, st.moss.x, y + h, st.moss.r);
       mg.addColorStop(0, 'rgba(84,100,46,.45)');
@@ -97,7 +128,7 @@
 
     // bevel: highlight top-left, shade bottom-right
     ctx.lineWidth = 3.2;
-    ctx.strokeStyle = 'rgba(255,250,238,.22)';
+    ctx.strokeStyle = style.highlight;
     trace(ctx, st.shape, 1.6, 1.6); ctx.stroke();
     ctx.strokeStyle = 'rgba(15,10,6,.32)';
     trace(ctx, st.shape, -1.6, -1.6); ctx.stroke();
@@ -105,7 +136,7 @@
     ctx.restore();
   }
 
-  function buildStones(size, rnd) {
+  function buildStones(size, rnd, style) {
     const stones = [];
     const rows = 10;
     const hs = [];
@@ -130,7 +161,7 @@
         if (split) parts[1] = [y + parts[0][1], rowH - parts[0][1]];
         for (const [py, ph] of parts) {
           const shape = makeStone(x + gap / 2, py + gap / 2, w - gap, ph - gap, rnd);
-          const color = stoneColor(rnd);
+          const color = style.color(rnd);
           const mottles = [];
           const nm = 10 + Math.floor(rnd() * 10);
           for (let i = 0; i < nm; i++) {
@@ -161,8 +192,30 @@
               crack.push([cx, cy]);
             }
           }
-          const moss = rnd() < 0.14 ? { x: shape.x + rnd() * shape.w, r: shape.w * (0.25 + rnd() * 0.35) } : null;
-          stones.push({ shape, color, mottles, pits, crack, moss });
+          const strata = [];
+          if (style.strata) {
+            const nb = 3 + Math.floor(rnd() * 6);
+            for (let i = 0; i < nb; i++) {
+              const dark = rnd() < 0.55;
+              strata.push({
+                y: shape.y + rnd() * shape.h, w: 0.8 + rnd() * shape.h * 0.12,
+                amp: 0.5 + rnd() * 2.5, f: 0.4 + rnd() * 0.8, ph: rnd() * 6,
+                c: dark
+                  ? `hsla(${color.h - 6} ${color.s + 10}% ${color.l - 12}% / ${0.12 + rnd() * 0.16})`
+                  : `hsla(${color.h + 4} ${color.s}% ${Math.min(92, color.l + 12)}% / ${0.14 + rnd() * 0.16})`
+              });
+            }
+          }
+          const sparks = [];
+          if (style.strata) {
+            const ns = 2 + Math.floor(rnd() * 4);
+            for (let i = 0; i < ns; i++) {
+              // favour the sunlit upper part of each stone
+              sparks.push([shape.x + shape.w * (0.12 + rnd() * 0.76), shape.y + shape.h * (0.12 + rnd() * rnd() * 0.76)]);
+            }
+          }
+          const moss = !style.strata && rnd() < 0.14 ? { x: shape.x + rnd() * shape.w, r: shape.w * (0.25 + rnd() * 0.35) } : null;
+          stones.push({ shape, color, mottles, pits, crack, moss, strata, sparks });
         }
         x += w;
       }
@@ -171,7 +224,8 @@
     return stones;
   }
 
-  function makeTile(size, dpr, seed) {
+  function makeTile(size, dpr, seed, styleName) {
+    const style = STYLES[styleName] || STYLES.sandstone;
     const rnd = mulberry32(seed || 1871);
     const c = document.createElement('canvas');
     c.width = c.height = Math.round(size * dpr);
@@ -179,14 +233,15 @@
     ctx.scale(c.width / size, c.height / size);
 
     // mortar bed
-    ctx.fillStyle = '#3d362f';
+    ctx.fillStyle = style.mortar;
     ctx.fillRect(0, 0, size, size);
+    const gr = style.grit.join(',');
     for (let i = 0; i < size * 4; i++) {
-      ctx.fillStyle = rnd() < 0.5 ? `rgba(20,15,10,${rnd() * 0.25})` : `rgba(200,185,160,${rnd() * 0.18})`;
+      ctx.fillStyle = rnd() < 0.5 ? `rgba(20,15,10,${rnd() * 0.25})` : `rgba(${gr},${rnd() * 0.18})`;
       ctx.fillRect(rnd() * size, rnd() * size, 1 + rnd() * 2, 1 + rnd() * 2);
     }
 
-    const stones = buildStones(size, rnd);
+    const stones = buildStones(size, rnd, style);
     // draw every stone at each wrapped offset so the tile repeats seamlessly
     const offs = [-size, 0, size];
     for (const st of stones) {
@@ -195,7 +250,7 @@
         if (s.x + ox > size + 6 || s.x + s.w + ox < -6) continue;
         for (const oy of offs) {
           if (s.y + oy > size + 6 || s.y + s.h + oy < -6) continue;
-          ctx.save(); ctx.translate(ox, oy); renderStone(ctx, st); ctx.restore();
+          ctx.save(); ctx.translate(ox, oy); renderStone(ctx, st, style); ctx.restore();
         }
       }
     }
@@ -204,10 +259,19 @@
     const img = ctx.getImageData(0, 0, c.width, c.height);
     const d = img.data;
     for (let i = 0; i < d.length; i += 4) {
-      const n = (rnd() - 0.5) * 30;
+      const n = (rnd() - 0.5) * style.grain;
       d[i] += n; d[i + 1] += n; d[i + 2] += n * 0.9;
     }
     ctx.putImageData(img, 0, 0);
+
+    // glint points (tile CSS px), only within the tile so each appears once per repeat
+    c.sparkles = [];
+    for (const st of stones) {
+      for (const [sx, sy] of st.sparks) {
+        const x = ((sx % size) + size) % size, y = ((sy % size) + size) % size;
+        c.sparkles.push({ x, y, ph: rnd() * 100, speed: 0.25 + rnd() * 0.5, size: 0.6 + rnd() * 0.8 });
+      }
+    }
     return c;
   }
 

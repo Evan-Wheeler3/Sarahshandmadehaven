@@ -10,6 +10,7 @@
   const NS = 'http://www.w3.org/2000/svg';
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
   const GREENS = ['#3f6a2e', '#4f7a35', '#5b8a3c', '#466f2f', '#6a9746', '#365c27'];
+  const PETALS = ['#f7f0e3', '#f2c6c3', '#e8a8b6', '#cdb9e6', '#f6d97e', '#f7f0e3'];
 
   let vines = [];
   let lastW = 0;
@@ -22,6 +23,27 @@
       <path fill="none" stroke="rgba(235,242,205,.38)" stroke-width=".6" stroke-linecap="round"
         d="M0 -5 L0 -21 M0 -8 L-6 -15 M0 -8 L6 -15 M0 -6 L-7.5 -8 M0 -6 L7.5 -8"/>
     </symbol>`;
+
+  const FLOWER = `
+    <symbol id="ivy-flower" overflow="visible">
+      <g fill="rgba(10,8,4,.3)" transform="translate(1 1.6)">${petals(0)}</g>
+      <g fill="currentColor" stroke="rgba(90,40,30,.18)" stroke-width=".5">${petals(0)}</g>
+      <g fill="rgba(255,255,255,.45)">${petals(1)}</g>
+      <circle r="2.3" fill="#e2ad3f"/>
+      <circle r="1.1" cx="-.5" cy="-.5" fill="#f6dc8a"/>
+      <g fill="#8a5a1c"><circle cx="1.2" cy=".9" r=".35"/><circle cx="-1.1" cy="1.1" r=".35"/><circle cx=".9" cy="-1.3" r=".35"/></g>
+    </symbol>`;
+
+  function petals(inner) {
+    let out = '';
+    for (let i = 0; i < 5; i++) {
+      const a = i * 72;
+      out += inner
+        ? `<ellipse cx="0" cy="-3.6" rx="1.3" ry="2" transform="rotate(${a})"/>`
+        : `<ellipse cx="0" cy="-4.4" rx="3.5" ry="4.6" transform="rotate(${a})"/>`;
+    }
+    return out;
+  }
 
   function leafD() {
     return 'M0 -5 C-3 -3.5 -8 -3.6 -9.6 -6.8 C-10.6 -9 -8.6 -11 -6.4 -10.8 ' +
@@ -49,7 +71,7 @@
   }
 
   function grow(spec, depth, ctx) {
-    const { rnd, band, vw, vh, gVines, gLeaves, leafScale } = ctx;
+    const { rnd, band, vw, vh, gVines, gLeaves, gFlowers, leafScale } = ctx;
     const step = 12;
     const n = Math.max(4, Math.round(spec.len / step));
     let x = spec.x, y = spec.y;
@@ -79,10 +101,11 @@
     path.style.strokeDasharray = `${L} ${L}`;
     path.style.strokeDashoffset = L;
 
-    const vine = { path, L, s0: spec.s0, s1: spec.s1, leaves: [], f: -1 };
+    const vine = { path, L, s0: spec.s0, s1: spec.s1, leaves: [], flowers: [], f: -1 };
 
     // leaves along the vine, alternating sides
     let acc = 0, next = 6 + rnd() * 10, side = rnd() < 0.5 ? 1 : -1;
+    let untilFlower = 3 + Math.floor(rnd() * 4);
     for (let i = 1; i < pts.length - 1; i++) {
       acc += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
       if (acc < next) continue;
@@ -98,9 +121,32 @@
       const inner = el('g', { class: 'leaf__in' }, g);
       el('use', { href: '#ivy-leaf', color: GREENS[Math.floor(rnd() * GREENS.length)] }, inner);
       vine.leaves.push({ g, at: acc, on: false });
+
+      // every few leaves, a little blossom tucked against the vine
+      if (--untilFlower <= 0) {
+        untilFlower = 3 + Math.floor(rnd() * 5);
+        const n = rnd() < 0.3 ? 2 + Math.floor(rnd() * 2) : 1;
+        const nx = -ty, ny = tx, nm = Math.hypot(nx, ny) || 1;
+        for (let k = 0; k < n; k++) {
+          const off = -side * (3 + rnd() * 5);
+          const fx = pts[i][0] + (nx / nm) * off + (rnd() - 0.5) * 8 * k;
+          const fy = pts[i][1] + (ny / nm) * off + (rnd() - 0.5) * 8 * k;
+          const fs = (0.65 + rnd() * 0.5) * leafScale * (k ? 0.75 : 1);
+          const fg = el('g', {
+            class: 'flower',
+            transform: `translate(${fx.toFixed(1)} ${fy.toFixed(1)}) rotate(${(rnd() * 72).toFixed(0)}) scale(${fs.toFixed(2)})`
+          }, gFlowers);
+          const fin = el('g', { class: 'flower__in' }, fg);
+          fin.style.transitionDelay = `${(k * 0.12).toFixed(2)}s`;
+          el('use', { href: '#ivy-flower', color: PETALS[Math.floor(rnd() * PETALS.length)] }, fin);
+          // bloom a beat after the leaves around it
+          vine.flowers.push({ g: fg, at: acc + 30, on: false });
+        }
+      }
     }
     const total = acc || 1;
     vine.leaves.forEach((l) => { l.at = l.at / total; });
+    vine.flowers.forEach((l) => { l.at = Math.min(1, l.at / total); });
     vines.push(vine);
 
     for (const bi of branches) {
@@ -122,14 +168,15 @@
     lastW = vw;
     vines = [];
     svg.setAttribute('viewBox', `0 0 ${vw} ${vh}`);
-    svg.innerHTML = `<defs>${LEAF}</defs>`;
+    svg.innerHTML = `<defs>${LEAF}${FLOWER}</defs>`;
     const gVines = el('g', { class: 'vines' }, svg);
     const gLeaves = el('g', { class: 'leaves' }, svg);
+    const gFlowers = el('g', { class: 'flowers' }, svg);
 
     const rnd = window.HavenStone.mulberry32(20240607);
     const band = clamp(vw * 0.17, 60, 300);
     const leafScale = vw < 700 ? 0.8 : 1.05;
-    const ctx = { rnd, band, vw, vh, gVines, gLeaves, leafScale };
+    const ctx = { rnd, band, vw, vh, gVines, gLeaves, gFlowers, leafScale };
 
     const specs = [
       { x: band * 0.2, y: vh + 10, dx: 0.2, dy: -1, side: 'left', len: vh * 1.05, s0: 0.0, s1: 0.7 },
@@ -166,9 +213,11 @@
       if (f === v.f) continue;
       v.f = f;
       v.path.style.strokeDashoffset = v.L * (1 - f);
-      for (const l of v.leaves) {
-        const on = f >= l.at;
-        if (on !== l.on) { l.on = on; l.g.classList.toggle('on', on); }
+      for (const list of [v.leaves, v.flowers]) {
+        for (const l of list) {
+          const on = f >= l.at;
+          if (on !== l.on) { l.on = on; l.g.classList.toggle('on', on); }
+        }
       }
     }
   }

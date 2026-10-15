@@ -23,6 +23,8 @@
 *, *::before, *::after { box-sizing: border-box; }
 
 html {
+  background: #556a3b;
+  overscroll-behavior-y: none;
   scroll-behavior: smooth;
   -webkit-text-size-adjust: 100%;
 }
@@ -32,7 +34,7 @@ html {
 
 body {
   margin: 0;
-  background: var(--stone);
+  background: #556a3b;
   color: var(--ink);
   font-family: var(--font-body);
   font-size: clamp(1.06rem, 0.98rem + 0.3vw, 1.22rem);
@@ -52,7 +54,8 @@ p { margin: 0 0 1em; }
 
 /* ---------- fixed layers ---------- */
 
-#scene {
+#scene,
+#glint {
   position: fixed;
   inset: 0;
   width: 100%;
@@ -61,6 +64,8 @@ p { margin: 0 0 1em; }
   z-index: 0;
   display: block;
 }
+
+#glint { pointer-events: none; }
 
 #ivy {
   position: fixed;
@@ -87,8 +92,14 @@ p { margin: 0 0 1em; }
   transition: transform 0.55s cubic-bezier(0.3, 1.6, 0.5, 1);
 }
 #ivy .leaf.on .leaf__in { transform: scale(1); }
+#ivy .flower__in {
+  transform: scale(0) rotate(-120deg);
+  transition: transform 0.9s cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+#ivy .flower.on .flower__in { transform: none; }
 @media (prefers-reduced-motion: reduce) {
-  #ivy .leaf__in { transition: none; }
+  #ivy .leaf__in,
+  #ivy .flower__in { transition: none; }
 }
 
 /* ---------- nav ---------- */

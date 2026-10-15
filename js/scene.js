@@ -9,6 +9,15 @@
   if (!canvas || !canvas.getContext || !window.HavenStone) return;
 
   const ctx = canvas.getContext('2d');
+  const glintCanvas = document.getElementById('glint');
+  const gctx = glintCanvas ? glintCanvas.getContext('2d') : null;
+  // ?tower=grey shows the original grey stone; sandstone is the default
+  const STYLE = new URLSearchParams(location.search).get('tower') === 'grey' ? 'grey' : 'sandstone';
+  const LOOK = {
+    grey: { vignette: 0.62, wash: 0.1, ground: '#556a3b', wall: '#3d362f', sky: '#bfd0cf', glints: false },
+    sandstone: { vignette: 0.5, wash: 0.16, ground: '#556a3b', wall: '#6b5238', sky: '#bfd0cf', glints: true }
+  }[STYLE];
+  const themeMeta = document.querySelector('meta[name="theme-color"]');
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const root = document.documentElement;
 
@@ -70,7 +79,8 @@
     const size = Math.round(clamp(S.vw * 0.6, 520, 900));
     if (size === S.tileSize && S.mips.length) return;
     S.tileSize = size;
-    const base = window.HavenStone.makeTile(size, S.dpr, 1871);
+    const base = window.HavenStone.makeTile(size, S.dpr, 1871, STYLE);
+    S.sparkles = base.sparkles || [];
     S.mips = window.HavenStone.makeMips(base);
     S.patterns = S.mips.map((c) => ctx.createPattern(c, 'repeat'));
   }
@@ -83,6 +93,10 @@
     S.dpr = dpr; S.vw = vw; S.vh = vh;
     canvas.width = Math.round(vw * dpr);
     canvas.height = Math.round(vh * dpr);
+    if (glintCanvas) {
+      glintCanvas.width = canvas.width;
+      glintCanvas.height = canvas.height;
+    }
     if (dprChanged) S.mips = [];
     buildTexture();
     layout();
@@ -182,40 +196,40 @@
     ctx.fill();
   }
 
-  function towerBody() {
+  function towerBody(c = ctx) {
     const L = S.L;
     const hwT = L.tw * 0.47, hwB = L.tw * 0.53;
-    ctx.beginPath();
-    ctx.moveTo(L.cx - hwT, L.topY);
-    ctx.lineTo(L.cx + hwT, L.topY);
-    ctx.lineTo(L.cx + hwB, L.baseY);
-    ctx.lineTo(L.cx - hwB, L.baseY);
-    ctx.closePath();
+    c.beginPath();
+    c.moveTo(L.cx - hwT, L.topY);
+    c.lineTo(L.cx + hwT, L.topY);
+    c.lineTo(L.cx + hwB, L.baseY);
+    c.lineTo(L.cx - hwB, L.baseY);
+    c.closePath();
   }
 
-  function parapet() {
+  function parapet(c = ctx, add = false) {
     const L = S.L, tw = L.tw, cx = L.cx, top = L.topY;
     const pw = tw * 0.62, hwT = tw * 0.47;
     const pTop = top - tw * 0.32, mh = tw * 0.3;
     const n = 4, a = (2 * pw) / (n + (n - 1) * 0.75), gap = a * 0.75;
-    ctx.beginPath();
-    ctx.moveTo(cx - hwT, top + tw * 0.32);
-    ctx.lineTo(cx - pw, top + tw * 0.08);
-    ctx.lineTo(cx - pw, pTop - mh);
+    if (!add) c.beginPath();
+    c.moveTo(cx - hwT, top + tw * 0.32);
+    c.lineTo(cx - pw, top + tw * 0.08);
+    c.lineTo(cx - pw, pTop - mh);
     let x = cx - pw;
     for (let i = 0; i < n; i++) {
       x += a;
-      ctx.lineTo(x, pTop - mh);
+      c.lineTo(x, pTop - mh);
       if (i < n - 1) {
-        ctx.lineTo(x, pTop);
+        c.lineTo(x, pTop);
         x += gap;
-        ctx.lineTo(x, pTop);
-        ctx.lineTo(x, pTop - mh);
+        c.lineTo(x, pTop);
+        c.lineTo(x, pTop - mh);
       }
     }
-    ctx.lineTo(cx + pw, top + tw * 0.08);
-    ctx.lineTo(cx + hwT, top + tw * 0.32);
-    ctx.closePath();
+    c.lineTo(cx + pw, top + tw * 0.08);
+    c.lineTo(cx + hwT, top + tw * 0.32);
+    c.closePath();
   }
 
   function archPath(cx, top, w, bottom) {
@@ -420,12 +434,12 @@
     const r = Math.max(vw, vh);
     const g = ctx.createRadialGradient(vw / 2, vh * 0.42, r * 0.15, vw / 2, vh * 0.5, r * 0.8);
     g.addColorStop(0, 'rgba(255,226,180,0)');
-    g.addColorStop(1, `rgba(16,11,7,${0.62 * a})`);
+    g.addColorStop(1, `rgba(16,11,7,${LOOK.vignette * a})`);
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, vw, vh);
     // a warm wash from above, like lamplight
     const w = ctx.createLinearGradient(0, 0, 0, vh);
-    w.addColorStop(0, `rgba(255,214,160,${0.1 * a})`);
+    w.addColorStop(0, `rgba(255,214,160,${LOOK.wash * a})`);
     w.addColorStop(1, `rgba(20,14,9,${0.2 * a})`);
     ctx.fillStyle = w;
     ctx.fillRect(0, 0, vw, vh);
@@ -463,6 +477,120 @@
     S.dirty = false;
   }
 
+  /* ---------- sandstone glints ---------- */
+
+  // a four-pointed sparkle, drawn once and stamped wherever a grain catches the light
+  const sprite = (() => {
+    const c = document.createElement('canvas');
+    const n = 64, h = n / 2;
+    c.width = c.height = n;
+    const x = c.getContext('2d');
+    const core = x.createRadialGradient(h, h, 0, h, h, h * 0.45);
+    core.addColorStop(0, 'rgba(255,255,250,1)');
+    core.addColorStop(0.3, 'rgba(255,242,205,.7)');
+    core.addColorStop(1, 'rgba(255,225,160,0)');
+    x.fillStyle = core;
+    x.fillRect(0, 0, n, n);
+    for (const [w, l] of [[1.6, h], [1.1, h * 0.55]]) {
+      for (const rot of l === h ? [0, Math.PI / 2] : [Math.PI / 4, -Math.PI / 4]) {
+        x.save();
+        x.translate(h, h); x.rotate(rot);
+        const g = x.createLinearGradient(-l, 0, l, 0);
+        g.addColorStop(0, 'rgba(255,240,200,0)');
+        g.addColorStop(0.5, 'rgba(255,255,245,.95)');
+        g.addColorStop(1, 'rgba(255,240,200,0)');
+        x.fillStyle = g;
+        x.fillRect(-l, -w / 2, l * 2, w);
+        x.restore();
+      }
+    }
+    return c;
+  })();
+
+  function drawGlints() {
+    if (!gctx) return;
+    const { vw, vh, dpr, L } = S;
+    gctx.setTransform(1, 0, 0, 1, 0, 0);
+    gctx.clearRect(0, 0, glintCanvas.width, glintCanvas.height);
+    if (!LOOK.glints || reduceMotion || !S.sparkles || !S.sparkles.length) return;
+
+    const p = S.p;
+    const cam = camera(p);
+    const scale = cam.z / L.Z;           // screen px per tile px
+    const tile = S.tileSize * scale;
+    const covered = p > 0.985;
+
+    gctx.save();
+    if (!covered) {
+      // only the tower's face sparkles while it stands in the landscape
+      gctx.setTransform(dpr * cam.z, 0, 0, dpr * cam.z, dpr * (cam.fx - L.F.x * cam.z), dpr * (cam.fy - L.F.y * cam.z));
+      towerBody(gctx); parapet(gctx, true);
+      gctx.clip();
+    }
+    gctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    // sunlight that slowly sweeps across the stone
+    const sweep = ((S.t * 0.045) % 1.6 - 0.3) * vw;
+    const sheenA = smooth(clamp((p - 0.5) / 0.5, 0, 1));
+    if (sheenA > 0) {
+      const sy = vh * (0.3 + 0.15 * Math.sin(S.t * 0.13));
+      const r = Math.max(vw, vh) * 0.45;
+      const g = gctx.createRadialGradient(sweep, sy, 0, sweep, sy, r);
+      g.addColorStop(0, `rgba(255,226,170,${0.16 * sheenA})`);
+      g.addColorStop(1, 'rgba(255,226,170,0)');
+      gctx.fillStyle = g;
+      gctx.fillRect(0, 0, vw, vh);
+    }
+
+    gctx.globalCompositeOperation = 'lighter';
+    // when far away, show only some grains so the tower doesn't fizz
+    const every = Math.max(1, Math.round(0.4 / Math.max(scale, 0.01)));
+    const size = (11 + 24 * Math.min(1, scale)) * (L.narrow ? 0.85 : 1);
+    const x0 = Math.floor(-cam.fx / tile) - 1, x1 = Math.ceil((vw - cam.fx) / tile);
+    const y0 = Math.floor(-cam.fy / tile) - 1, y1 = Math.ceil((vh - cam.fy) / tile);
+    const sw = Math.max(vw * 0.28, 160);
+    // the window opening is a hole in the stone, so no glints there
+    const wx0 = (L.cx - L.winW * 0.6 - L.F.x) * cam.z + cam.fx, wx1 = (L.cx + L.winW * 0.6 - L.F.x) * cam.z + cam.fx;
+    const wy0 = (L.winTop - L.F.y) * cam.z + cam.fy, wy1 = (L.winBottom - L.F.y) * cam.z + cam.fy;
+    const list = S.sparkles;
+    for (let ty = y0; ty <= y1; ty++) {
+      for (let tx = x0; tx <= x1; tx++) {
+        const bx = cam.fx + tx * tile, by = cam.fy + ty * tile;
+        const start = (((tx * 7 + ty * 13) % every) + every) % every;
+        for (let i = start; i < list.length; i += every) {
+          const sp = list[i];
+          const x = bx + sp.x * scale, y = by + sp.y * scale;
+          if (x < -10 || y < -10 || x > vw + 10 || y > vh + 10) continue;
+          if (!covered && x > wx0 && x < wx1 && y > wy0 && y < wy1) continue;
+          const tw = Math.sin(S.t * sp.speed * 2.6 + sp.ph + tx * 1.7 + ty * 2.3);
+          if (tw < 0.76) continue;
+          const light = 0.3 + 0.7 * Math.exp(-Math.pow((x - sweep) / sw, 2));
+          const a = Math.pow((tw - 0.76) / 0.24, 2) * light;
+          if (a < 0.03) continue;
+          const d = size * sp.size * (0.5 + a * 0.6);
+          gctx.globalAlpha = Math.min(1, a * 1.1);
+          gctx.drawImage(sprite, x - d / 2, y - d / 2, d, d);
+        }
+      }
+    }
+    gctx.globalAlpha = 1;
+    gctx.globalCompositeOperation = 'source-over';
+    gctx.restore();
+  }
+
+  // keep the browser's own background (seen during overscroll and behind
+  // mobile toolbars) matching whatever is at the edge of the scene
+  let lastPhase = '';
+  function syncChrome(p) {
+    const phase = p < 0.45 ? 'hero' : 'wall';
+    if (phase === lastPhase) return;
+    lastPhase = phase;
+    const c = phase === 'hero' ? LOOK.ground : LOOK.wall;
+    root.style.backgroundColor = c;
+    document.body.style.backgroundColor = c;
+    if (themeMeta) themeMeta.setAttribute('content', phase === 'hero' ? LOOK.sky : LOOK.wall);
+  }
+
   /* ---------- loop ---------- */
 
   function readScroll() {
@@ -486,6 +614,8 @@
     const live = S.p < 0.6; // window flicker, clouds and motes only matter while the tower is visible
     if (live) updateMotes(dt, S.p);
     if (live || S.dirty || S.p !== S.drawnP) draw();
+    drawGlints();
+    syncChrome(S.p);
 
     const cssP = Math.round(S.p * 1000) / 1000;
     if (cssP !== lastCssP) {
